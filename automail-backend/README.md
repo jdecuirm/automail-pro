@@ -94,6 +94,82 @@ curl -s -X POST http://localhost:8000/api/tasks/ping | python3 -m json.tool
 curl -s http://localhost:8000/api/tasks/<task_id>/status | python3 -m json.tool
 ```
 
+## Scraping pipeline (Stage E)
+
+When a CSV is uploaded, a `leads.scrape` Celery task is dispatched for each lead
+**after the DB transaction commits** (prevents workers from querying uncommitted rows).
+
+### Pipeline flow per lead
+
+```
+cache check ──► robots.txt check ──► rate limiter wait ──► scrape_static (httpx + BS4)
+                                                               │
+                                               empty/JS? ──►  scrape_dynamic (Playwright)
+                                                               │
+                                               both fail? ──►  Lead.status = failed
+                                                               │
+                                                          ──►  LeadResearch created
+                                                               Lead.status = researched
+```
+
+### Ethical scraping principles (non-negotiable)
+
+- **robots.txt**: checked before every domain. `404` → allow, `403` → deny, timeout → allow.
+- **Rate limiting**: max 1 request per 2 seconds per domain (Redis-backed, worker-safe).
+- **User-Agent**: honest — `AutoMailPro/1.0 (+https://github.com/jdecuirm/automail-pro)`
+- **Cache**: scraped content cached 7 days in Redis (avoids hammering same domain).
+- **LinkedIn**: only `/company/` public pages. Personal `/in/` profiles are skipped — they require login (ToS violation).
+- **No stealth**: no anti-detection plugins, no headless fingerprint spoofing.
+
+### Scraping dependencies
+
+```bash
+# Playwright browser (one-time download, ~113 MB)
+uv run playwright install chromium
+```
+
+## Email generation pipeline (Stage F)
+
+When a lead's scraping completes and `LeadResearch` is persisted, a `leads.generate`
+Celery task is automatically dispatched. The task calls **Claude Haiku 4.5** to write a
+personalized B2B cold email based on the scraped research.
+
+### Generation flow
+
+```
+scraping completes → leads.generate dispatched → Claude Haiku 4.5 called
+                                                       │
+                                   parse JSON response (subject + body_text + body_html)
+                                                       │
+                                        Email row persisted (status = draft)
+                                                       │
+                                        Lead.status = drafted
+```
+
+### Email review endpoint
+
+```bash
+# List all email drafts for a campaign (status = draft)
+curl http://localhost:8000/api/campaigns/<campaign_id>/emails | python3 -m json.tool
+# → 200 [{ id, lead_id, lead_name, subject, body_text, body_html, status, created_at }]
+```
+
+### PII safety
+
+- Lead email addresses are **never sent to Claude**. `build_user_prompt()` accepts
+  `lead_email` but intentionally excludes it from the prompt.
+- Only the lead's first name, company name, and scraped research summary are included.
+- The Claude model is locked to `claude-haiku-4-5` (cost-efficient, set in `config.py`).
+
+### Retry behavior
+
+The `leads.generate` task retries automatically on:
+
+- `httpx.TimeoutException`
+- `anthropic.APIConnectionError`
+
+Up to 2 retries with exponential backoff (max 120s).
+
 ## Test
 
 Tests require both PostgreSQL 18 and Redis to be running locally.

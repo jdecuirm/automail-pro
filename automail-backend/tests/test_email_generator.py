@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.services.email_generator import build_user_prompt, parse_claude_response
 from app.services.llm_client import complete
 
 
@@ -83,7 +84,6 @@ async def test_complete_retries_on_rate_limit_error():
     assert mock_client.messages.create.call_count == 2
 
 
-from app.services.email_generator import build_user_prompt, parse_claude_response
 
 
 def test_build_user_prompt_includes_lead_info():
