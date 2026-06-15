@@ -42,7 +42,10 @@ async def complete(
         system=system,
         messages=[{"role": "user", "content": user}],
     )
-    text: str = response.content[0].text
+    block = response.content[0]
+    if not isinstance(block, anthropic.types.TextBlock):
+        raise ValueError(f"Unexpected content block type: {type(block)}")
+    text: str = block.text
     logger.debug(
         "llm_client: model=%s input_tokens=%d output_tokens=%d",
         model,
