@@ -1,7 +1,7 @@
 from functools import lru_cache
-from typing import Any, Literal
+from typing import Literal
 
-from pydantic import SecretStr, field_validator
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -41,23 +41,18 @@ class Settings(BaseSettings):
     # Scraping
     scrape_rate_limit_seconds: int = 2
     scrape_cache_ttl_days: int = 7
-    scrape_user_agent: str = (
-        "AutoMailPro/1.0 (+https://github.com/jdecuirm/automail-pro)"
-    )
+    scrape_user_agent: str = "AutoMailPro/1.0 (+https://github.com/jdecuirm/automail-pro)"
 
     # Email
     max_emails_per_user_per_day: int = 50
 
-    # CORS
-    cors_allow_origins: list[str] = ["http://localhost:5173"]
+    # CORS — stored as comma-separated string; pydantic-settings parses list[str] as JSON
+    # so we keep it as str and expose a property to split at usage time
+    cors_allow_origins: str = "http://localhost:5173"
 
-    @field_validator("cors_allow_origins", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, v: Any) -> Any:
-        """Parse CORS origins from comma-separated string or list."""
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",")]
-        return v
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]
 
 
 @lru_cache
