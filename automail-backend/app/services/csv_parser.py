@@ -161,7 +161,7 @@ def parse_csv(
             valid_leads.append(
                 LeadCreate(
                     name=name[:200],
-                    email=email,
+                    email=email.lower(),
                     company=company[:200] if company else None,
                     website=website,
                     linkedin_url=linkedin_url,

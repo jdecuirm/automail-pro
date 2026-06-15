@@ -91,9 +91,14 @@ async def list_campaign_leads(
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(50, ge=1, le=200, description="Items per page"),
     session: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ) -> LeadPagination:
     """List leads for a campaign with pagination."""
-    return await campaign_service.list_leads(session, campaign_id, page, page_size)
+    user_id = uuid.UUID(settings.demo_user_id)
+    result = await campaign_service.list_leads(session, campaign_id, user_id, page, page_size)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Campaign not found.")
+    return result
 
 
 @router.get("/{campaign_id}/emails", response_model=list[EmailResponse])

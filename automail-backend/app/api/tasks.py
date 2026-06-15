@@ -27,7 +27,7 @@ async def task_status(task_id: str) -> dict[str, Any]:
         "error": None,
     }
     if state == "SUCCESS":
-        payload["result"] = result.get()
+        payload["result"] = result.result
     elif state == "FAILURE":
         payload["error"] = str(result.info)
     return payload

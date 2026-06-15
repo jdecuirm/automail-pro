@@ -108,9 +108,19 @@ async def get_campaign(
 async def list_leads(
     session: AsyncSession,
     campaign_id: uuid.UUID,
+    user_id: uuid.UUID,
     page: int,
     page_size: int,
-) -> LeadPagination:
+) -> LeadPagination | None:
+    """Return paginated leads for a campaign owned by user_id, or None if not found."""
+    campaign = (
+        await session.execute(
+            select(Campaign).where(Campaign.id == campaign_id, Campaign.user_id == user_id)
+        )
+    ).scalar_one_or_none()
+    if campaign is None:
+        return None
+
     count_stmt = select(func.count()).select_from(Lead).where(Lead.campaign_id == campaign_id)
     total: int = (await session.execute(count_stmt)).scalar_one()
 

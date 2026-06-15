@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 )
 def scrape_lead(self: Any, lead_id: str) -> dict[str, Any]:
     """Scrape a lead's website and persist a LeadResearch row."""
-    from app.database import get_session_context
+    from app.database import get_task_session as get_session_context
     from app.services import scraper_orchestrator
     from app.tasks.generation import generate_email
 

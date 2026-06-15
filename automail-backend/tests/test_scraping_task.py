@@ -41,7 +41,7 @@ def test_scrape_task_returns_researched_on_success():
         yield mock_session
 
     with patch("app.services.scraper_orchestrator.scrape_lead", side_effect=_fake_scrape):
-        with patch("app.database.get_session_context", _fake_ctx):
+        with patch("app.database.get_task_session", _fake_ctx):
             with patch("app.tasks.generation.generate_email"):
                 celery_app.conf.update(task_always_eager=True, task_eager_propagates=True)
                 result = scrape_lead.apply(args=[lead_id])
@@ -70,7 +70,7 @@ def test_scrape_task_returns_failed_when_orchestrator_returns_none():
         yield mock_session
 
     with patch("app.services.scraper_orchestrator.scrape_lead", side_effect=_fake_scrape_none):
-        with patch("app.database.get_session_context", _fake_ctx):
+        with patch("app.database.get_task_session", _fake_ctx):
             celery_app.conf.update(task_always_eager=True, task_eager_propagates=True)
             result = scrape_lead.apply(args=[lead_id])
             celery_app.conf.update(task_always_eager=False, task_eager_propagates=False)
@@ -99,7 +99,7 @@ def test_scrape_task_dispatches_generation_on_success():
         yield mock_session
 
     with patch("app.services.scraper_orchestrator.scrape_lead", side_effect=_fake_scrape):
-        with patch("app.database.get_session_context", _fake_ctx):
+        with patch("app.database.get_task_session", _fake_ctx):
             with patch("app.tasks.generation.generate_email") as mock_generate:
                 celery_app.conf.update(task_always_eager=True, task_eager_propagates=True)
                 result = scrape_lead.apply(args=[lead_id])

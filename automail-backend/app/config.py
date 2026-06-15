@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_DEV_SECRET_KEY = "dev-secret-change-me"
+_DEV_TRACKING_KEY = "dev-tracking-key-change-me"
 
 
 class Settings(BaseSettings):
@@ -29,12 +34,12 @@ class Settings(BaseSettings):
 
     # Google OAuth (Gmail)
     google_client_id: str = ""
-    google_client_secret: str = ""
+    google_client_secret: SecretStr | None = None
     google_redirect_uri: str = "http://localhost:8000/api/oauth/google/callback"
 
-    # App
-    app_secret_key: SecretStr = SecretStr("dev-secret-change-me")
-    tracking_secret_key: SecretStr = SecretStr("dev-tracking-key-change-me")
+    # App — defaults are dev-only; validator raises if used outside localhost
+    app_secret_key: SecretStr = SecretStr(_DEV_SECRET_KEY)
+    tracking_secret_key: SecretStr = SecretStr(_DEV_TRACKING_KEY)
     app_base_url: str = "http://localhost:8000"
     frontend_base_url: str = "http://localhost:5173"
 
@@ -42,6 +47,10 @@ class Settings(BaseSettings):
     scrape_rate_limit_seconds: int = 2
     scrape_cache_ttl_days: int = 7
     scrape_user_agent: str = "AutoMailPro/1.0 (+https://github.com/jdecuirm/automail-pro)"
+    scrape_static_timeout: int = 15
+    scrape_dynamic_timeout: int = 30
+    scrape_max_retries: int = 3
+    scrape_robots_cache_ttl_seconds: int = 86400  # 24h
 
     # Email
     max_emails_per_user_per_day: int = 50
@@ -56,6 +65,20 @@ class Settings(BaseSettings):
     # CSV upload limits
     csv_max_size_mb: int = 5
     csv_max_rows: int = 10_000
+
+    @model_validator(mode="after")
+    def _reject_dev_secrets_in_production(self) -> "Settings":
+        is_prod = "localhost" not in self.app_base_url and "127.0.0.1" not in self.app_base_url
+        if is_prod:
+            if self.app_secret_key.get_secret_value() == _DEV_SECRET_KEY:
+                raise ValueError(
+                    "APP_SECRET_KEY must be set to a strong random value in production"
+                )
+            if self.tracking_secret_key.get_secret_value() == _DEV_TRACKING_KEY:
+                raise ValueError(
+                    "TRACKING_SECRET_KEY must be set to a strong random value in production"
+                )
+        return self
 
     @property
     def cors_origin_list(self) -> list[str]:

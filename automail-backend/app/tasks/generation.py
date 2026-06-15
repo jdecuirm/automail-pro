@@ -30,7 +30,7 @@ def generate_email(self: Any, lead_id: str) -> dict[str, Any]:
     Returns:
         dict with keys: lead_id (str), status ("drafted" | "failed"), email_id (str | None)
     """
-    from app.database import get_session_context
+    from app.database import get_task_session as get_session_context
     from app.services import email_generator
 
     try:
