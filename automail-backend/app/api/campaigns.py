@@ -1,0 +1,95 @@
+from __future__ import annotations
+
+import uuid
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.config import Settings, get_settings
+from app.database import get_db
+from app.schemas.campaign import CampaignListItem, CampaignResponse
+from app.schemas.csv_upload import CSVUploadResponse
+from app.schemas.lead import LeadPagination
+from app.services import campaign_service
+
+router = APIRouter(prefix="/api/campaigns", tags=["campaigns"])
+
+_ACCEPTED_CONTENT_TYPES = {
+    "text/csv",
+    "text/plain",
+    "application/csv",
+    "application/vnd.ms-excel",
+    "application/octet-stream",
+}
+
+
+@router.post("", status_code=201, response_model=CSVUploadResponse)
+async def create_campaign(
+    file: UploadFile = File(..., description="CSV file with leads"),
+    name: str = Form(..., min_length=1, max_length=255, description="Campaign name"),
+    session: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> CSVUploadResponse:
+    """Upload a CSV of leads and create a new campaign."""
+    content_type = (file.content_type or "").split(";")[0].strip().lower()
+    if content_type and content_type not in _ACCEPTED_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {content_type!r}. Upload a CSV file.",
+        )
+
+    contents = await file.read()
+
+    max_bytes = settings.csv_max_size_mb * 1024 * 1024
+    if len(contents) > max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size is {settings.csv_max_size_mb} MB.",
+        )
+
+    filename = file.filename or "upload.csv"
+    user_id = uuid.UUID(settings.demo_user_id)
+
+    try:
+        result = await campaign_service.create_campaign_from_csv(
+            session, contents, filename, name, user_id
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    return result
+
+
+@router.get("", response_model=list[CampaignListItem])
+async def list_campaigns(
+    session: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> list[CampaignListItem]:
+    """List all campaigns for the demo user."""
+    user_id = uuid.UUID(settings.demo_user_id)
+    return await campaign_service.list_campaigns(session, user_id)
+
+
+@router.get("/{campaign_id}", response_model=CampaignResponse)
+async def get_campaign(
+    campaign_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> CampaignResponse:
+    """Get campaign detail by ID."""
+    user_id = uuid.UUID(settings.demo_user_id)
+    campaign = await campaign_service.get_campaign(session, campaign_id, user_id)
+    if campaign is None:
+        raise HTTPException(status_code=404, detail="Campaign not found.")
+    return campaign
+
+
+@router.get("/{campaign_id}/leads", response_model=LeadPagination)
+async def list_campaign_leads(
+    campaign_id: uuid.UUID,
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(50, ge=1, le=200, description="Items per page"),
+    session: AsyncSession = Depends(get_db),
+) -> LeadPagination:
+    """List leads for a campaign with pagination."""
+    return await campaign_service.list_leads(session, campaign_id, page, page_size)

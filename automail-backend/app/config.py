@@ -50,6 +50,13 @@ class Settings(BaseSettings):
     # so we keep it as str and expose a property to split at usage time
     cors_allow_origins: str = "http://localhost:5173"
 
+    # Demo auth — temporary until Stage J introduces real user management
+    demo_user_id: str = "00000000-0000-0000-0000-000000000001"
+
+    # CSV upload limits
+    csv_max_size_mb: int = 5
+    csv_max_rows: int = 10_000
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]

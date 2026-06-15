@@ -1,0 +1,6 @@
+name,email,company,website,linkedin_url
+Alice Johnson,alice@acme.com,Acme Corp,https://acme.com,https://linkedin.com/in/alicejohnson
+Bob Smith,bob@startup.io,Startup Inc,https://startup.io,https://linkedin.com/in/bobsmith
+Carol White,carol@enterprise.net,Enterprise LLC,https://enterprise.net,
+Dave Brown,dave@tech.com,Tech Co,,
+Eve Davis,eve@consulting.org,Consulting Group,https://consulting.org,https://linkedin.com/in/evedavis

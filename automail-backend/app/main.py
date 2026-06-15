@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.campaigns import router as campaigns_router
 from app.api.tasks import router as tasks_router
 from app.config import get_settings
 
@@ -42,6 +43,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    application.include_router(campaigns_router)
     application.include_router(tasks_router)
 
     return application

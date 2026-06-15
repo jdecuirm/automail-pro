@@ -1,12 +1,25 @@
+from __future__ import annotations
+
 from collections.abc import AsyncGenerator, Generator
+from pathlib import Path
 from typing import Any
 
 import pytest
 from celery import Celery
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.config import get_settings
+from app.database import get_db
+from app.main import app
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+
+# ---------------------------------------------------------------------------
+# Database fixtures
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -22,6 +35,49 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
         await session.rollback()
 
     await engine.dispose()
+
+
+@pytest.fixture
+async def transactional_session() -> AsyncGenerator[AsyncSession, None]:
+    """Session backed by a rolled-back outer transaction for test isolation.
+
+    The service layer calls session.commit() freely; those commits go to a
+    SAVEPOINT, not the real database.  The outer transaction rolls back at
+    the end of the test, leaving the DB clean.
+    """
+    settings = get_settings()
+    engine = create_async_engine(settings.database_url, poolclass=NullPool)
+    async with engine.connect() as conn:
+        async with conn.begin() as outer_tx:
+            session = async_sessionmaker(
+                conn,
+                expire_on_commit=False,
+                join_transaction_mode="create_savepoint",
+            )()
+            yield session
+            await session.close()
+            await outer_tx.rollback()
+    await engine.dispose()
+
+
+@pytest.fixture
+async def campaign_client(
+    transactional_session: AsyncSession,
+) -> AsyncGenerator[AsyncClient, None]:
+    """HTTPX test client wired to the transactional session."""
+
+    async def _override_db() -> AsyncGenerator[AsyncSession, None]:
+        yield transactional_session
+
+    app.dependency_overrides[get_db] = _override_db
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        yield client
+    app.dependency_overrides.pop(get_db, None)
+
+
+# ---------------------------------------------------------------------------
+# Celery fixtures
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
