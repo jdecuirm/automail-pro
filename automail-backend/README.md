@@ -31,14 +31,34 @@ uv run uvicorn app.main:app --reload
 # Interactive docs at http://localhost:8000/docs
 ```
 
+## Background tasks (Celery + Redis)
+
+Requires Redis running locally on port 6379.
+
+```bash
+# Start the Celery worker
+uv run celery -A app.celery_app:celery_app worker --loglevel=info
+
+# Start Flower monitoring UI (http://localhost:5555)
+uv run celery -A app.celery_app:celery_app flower --port=5555
+
+# Smoke-test the task queue
+curl -s -X POST http://localhost:8000/api/tasks/ping | python3 -m json.tool
+# Copy the task_id from above, then:
+curl -s http://localhost:8000/api/tasks/<task_id>/status | python3 -m json.tool
+```
+
 ## Test
 
-Tests use the same database with per-test rollbacks (NullPool, no shared state).
+Tests require both PostgreSQL 18 and Redis to be running locally.
+Celery task tests run in eager mode (synchronous, no real broker needed for task logic,
+but Redis is still used for the result backend in status-endpoint tests).
 
 ```bash
 uv run pytest
 uv run pytest -v          # verbose
 uv run pytest -x          # stop on first failure
+uv run pytest tests/test_tasks.py   # Celery tests only
 ```
 
 ## Lint
