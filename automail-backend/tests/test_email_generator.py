@@ -140,12 +140,11 @@ async def test_generate_email_draft_returns_email_model(transactional_session):
     import uuid
     from unittest.mock import AsyncMock, patch
 
-    from app.services.email_generator import generate_email_draft
-
     from app.config import get_settings
     from app.models.campaign import Campaign, CampaignStatus
     from app.models.lead import Lead, LeadStatus
     from app.models.lead_research import LeadResearch
+    from app.services.email_generator import generate_email_draft
 
     settings = get_settings()
     campaign = Campaign(
@@ -207,11 +206,10 @@ async def test_generate_email_draft_no_research(transactional_session):
     """Lead exists but has no LeadResearch — should mark failed."""
     import uuid
 
-    from app.services.email_generator import generate_email_draft
-
     from app.config import get_settings
     from app.models.campaign import Campaign, CampaignStatus
     from app.models.lead import Lead, LeadStatus
+    from app.services.email_generator import generate_email_draft
 
     settings = get_settings()
     campaign = Campaign(
@@ -238,3 +236,56 @@ async def test_generate_email_draft_no_research(transactional_session):
     await transactional_session.refresh(lead)
     assert lead.status == LeadStatus.failed
     assert lead.error_message is not None
+
+
+async def test_generate_email_draft_claude_exception_marks_failed(transactional_session):
+    """When complete() raises, generate_email_draft() returns None and sets lead.status = failed."""
+    import uuid
+    from unittest.mock import AsyncMock, patch
+
+    from app.config import get_settings
+    from app.models.campaign import Campaign, CampaignStatus
+    from app.models.lead import Lead, LeadStatus
+    from app.models.lead_research import LeadResearch
+    from app.services.email_generator import generate_email_draft
+
+    settings = get_settings()
+    campaign = Campaign(
+        user_id=uuid.UUID(settings.demo_user_id),
+        name="Exception Test Campaign",
+        status=CampaignStatus.generating,
+        total_leads=1,
+    )
+    transactional_session.add(campaign)
+    await transactional_session.flush()
+
+    lead = Lead(
+        campaign_id=campaign.id,
+        name="Charlie Brown",
+        email="charlie@peanuts.com",
+        company="Peanuts Inc",
+        status=LeadStatus.researched,
+    )
+    transactional_session.add(lead)
+    await transactional_session.flush()
+
+    research = LeadResearch(
+        lead_id=lead.id,
+        summary="[Website] Title: Peanuts Inc\nContent: We sell comics.",
+        extracted_data={"title": "Peanuts Inc"},
+    )
+    transactional_session.add(research)
+    await transactional_session.flush()
+
+    with patch(
+        "app.services.email_generator.complete",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("API down"),
+    ):
+        result = await generate_email_draft(lead.id, transactional_session)
+
+    assert result is None
+    await transactional_session.refresh(lead)
+    assert lead.status == LeadStatus.failed
+    assert lead.error_message is not None
+    assert "generation_failed" in lead.error_message
