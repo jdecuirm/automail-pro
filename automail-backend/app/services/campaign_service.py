@@ -7,9 +7,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.campaign import Campaign, CampaignStatus
+from app.models.email import Email
 from app.models.lead import Lead, LeadStatus
 from app.schemas.campaign import CampaignListItem, CampaignResponse
 from app.schemas.csv_upload import CSVUploadResponse
+from app.schemas.email import EmailResponse
 from app.schemas.lead import LeadPagination, LeadResponse
 from app.services.csv_parser import parse_csv
 from app.tasks.scraping import scrape_lead
@@ -54,11 +56,14 @@ async def create_campaign_from_csv(
     ]
     session.add_all(leads)
     await session.flush()  # populate lead.id values
-
-    for lead in leads:
-        scrape_lead.delay(str(lead.id))
+    # Collect IDs before commit so we can dispatch tasks after the transaction is visible
+    lead_ids = [str(lead.id) for lead in leads]
 
     await session.commit()
+
+    # Dispatch AFTER commit so workers find the lead rows in the DB
+    for lead_id in lead_ids:
+        scrape_lead.delay(lead_id)
     logger.info(
         "campaign_service: created campaign=%s leads=%d filename=%r",
         campaign.id,
@@ -125,3 +130,53 @@ async def list_leads(
         page=page,
         page_size=page_size,
     )
+
+
+async def list_emails(
+    session: AsyncSession,
+    campaign_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> list[EmailResponse] | None:
+    """Return all email drafts for leads in a campaign owned by user_id.
+
+    Args:
+        session: Async database session.
+        campaign_id: UUID of the campaign.
+        user_id: UUID of the requesting user (ownership check).
+
+    Returns:
+        List of EmailResponse objects, or None if campaign not found/not owned by user.
+    """
+    campaign = (
+        await session.execute(
+            select(Campaign).where(Campaign.id == campaign_id, Campaign.user_id == user_id)
+        )
+    ).scalar_one_or_none()
+    if campaign is None:
+        return None
+
+    stmt = (
+        select(Email, Lead.name.label("lead_name"))
+        .join(Lead, Email.lead_id == Lead.id)
+        .where(Lead.campaign_id == campaign_id)
+        .order_by(Email.created_at)
+    )
+    rows = (await session.execute(stmt)).all()
+
+    results: list[EmailResponse] = []
+    for email, lead_name in rows:
+        data = EmailResponse.model_validate(
+            {
+                "id": email.id,
+                "lead_id": email.lead_id,
+                "lead_name": lead_name,
+                "subject": email.subject,
+                "body_text": email.body_text,
+                "body_html": email.body_html,
+                "status": email.status,
+                "created_at": email.created_at,
+                "updated_at": email.updated_at,
+            }
+        )
+        results.append(data)
+    return results

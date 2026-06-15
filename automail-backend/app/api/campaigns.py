@@ -9,6 +9,7 @@ from app.config import Settings, get_settings
 from app.database import get_db
 from app.schemas.campaign import CampaignListItem, CampaignResponse
 from app.schemas.csv_upload import CSVUploadResponse
+from app.schemas.email import EmailResponse
 from app.schemas.lead import LeadPagination
 from app.services import campaign_service
 
@@ -93,3 +94,17 @@ async def list_campaign_leads(
 ) -> LeadPagination:
     """List leads for a campaign with pagination."""
     return await campaign_service.list_leads(session, campaign_id, page, page_size)
+
+
+@router.get("/{campaign_id}/emails", response_model=list[EmailResponse])
+async def list_campaign_emails(
+    campaign_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> list[EmailResponse]:
+    """List all email drafts for a campaign."""
+    user_id = uuid.UUID(settings.demo_user_id)
+    result = await campaign_service.list_emails(session, campaign_id, user_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Campaign not found.")
+    return result

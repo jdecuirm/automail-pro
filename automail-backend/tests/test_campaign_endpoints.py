@@ -196,3 +196,84 @@ async def test_list_leads_paginated(campaign_client: AsyncClient) -> None:
         assert lead["status"] == "uploaded"
         assert "email" in lead
         assert "name" in lead
+
+
+# ---------------------------------------------------------------------------
+# Email listing
+# ---------------------------------------------------------------------------
+
+
+async def test_list_emails_empty(campaign_client, transactional_session):
+    """GET /api/campaigns/{id}/emails returns empty list when no drafts."""
+    import uuid
+
+    from app.config import get_settings
+    from app.models.campaign import Campaign, CampaignStatus
+
+    settings = get_settings()
+    campaign = Campaign(
+        user_id=uuid.UUID(settings.demo_user_id),
+        name="Email List Test",
+        status=CampaignStatus.generating,
+        total_leads=0,
+    )
+    transactional_session.add(campaign)
+    await transactional_session.flush()
+
+    resp = await campaign_client.get(f"/api/campaigns/{campaign.id}/emails")
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+async def test_list_emails_returns_drafts(campaign_client, transactional_session):
+    """GET /api/campaigns/{id}/emails returns Email rows for leads in that campaign."""
+    import uuid
+
+    from app.config import get_settings
+    from app.models.campaign import Campaign, CampaignStatus
+    from app.models.email import Email, EmailStatus
+    from app.models.lead import Lead, LeadStatus
+
+    settings = get_settings()
+    campaign = Campaign(
+        user_id=uuid.UUID(settings.demo_user_id),
+        name="Draft Email Campaign",
+        status=CampaignStatus.review,
+        total_leads=1,
+    )
+    transactional_session.add(campaign)
+    await transactional_session.flush()
+
+    lead = Lead(
+        campaign_id=campaign.id,
+        name="Alice",
+        email="alice@acme.com",
+        status=LeadStatus.drafted,
+    )
+    transactional_session.add(lead)
+    await transactional_session.flush()
+
+    email = Email(
+        lead_id=lead.id,
+        subject="Quick question about Acme",
+        body_text="Hi Alice,\n\nI noticed...",
+        body_html="<p>Hi Alice,</p>",
+        status=EmailStatus.draft,
+    )
+    transactional_session.add(email)
+    await transactional_session.flush()
+
+    resp = await campaign_client.get(f"/api/campaigns/{campaign.id}/emails")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["subject"] == "Quick question about Acme"
+    assert data[0]["status"] == "draft"
+    assert data[0]["lead_name"] == "Alice"
+
+
+async def test_list_emails_campaign_not_found(campaign_client):
+    import uuid
+
+    resp = await campaign_client.get(f"/api/campaigns/{uuid.uuid4()}/emails")
+    assert resp.status_code == 404
