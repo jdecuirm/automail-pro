@@ -9,12 +9,13 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.models.campaign import Campaign
 from app.models.email import Email, EmailStatus
 from app.models.lead import Lead
 
 
 async def _count_sent_today(user_id: uuid.UUID, session: AsyncSession) -> int:
-    """Count emails with status=sent for user today (UTC midnight boundary).
+    """Count emails with status=sent for a specific user today (UTC midnight boundary).
 
     Args:
         user_id: The user whose sent emails to count.
@@ -28,7 +29,9 @@ async def _count_sent_today(user_id: uuid.UUID, session: AsyncSession) -> int:
         select(func.count())
         .select_from(Email)
         .join(Lead, Email.lead_id == Lead.id)
+        .join(Campaign, Lead.campaign_id == Campaign.id)
         .where(
+            Campaign.user_id == user_id,
             Email.status == EmailStatus.sent,
             Email.sent_at >= today_midnight,
         )
