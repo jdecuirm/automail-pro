@@ -90,7 +90,7 @@ def test_send_task_quota_exceeded_marks_failed_no_retry():
 
 def test_send_task_credential_revoked_marks_failed_no_retry():
     from app.celery_app import celery_app
-    from app.services.gmail_sender import CredentialRevoked
+    from app.services.gmail_sender import CredentialRevokedError
     from app.tasks.sending import send_email_task
 
     email_id = str(uuid.uuid4())
@@ -116,7 +116,7 @@ def test_send_task_credential_revoked_marks_failed_no_retry():
             with patch(
                 "app.services.gmail_sender.send_email",
                 new_callable=AsyncMock,
-                side_effect=CredentialRevoked("revoked"),
+                side_effect=CredentialRevokedError("revoked"),
             ):
                 celery_app.conf.update(task_always_eager=True, task_eager_propagates=True)
                 try:

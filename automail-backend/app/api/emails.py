@@ -131,7 +131,10 @@ async def update_email(
     if email.status != EmailStatus.draft:
         raise HTTPException(
             status_code=409,
-            detail=f"Cannot edit email with status '{email.status.value}'. Only draft emails can be edited.",
+            detail=(
+                f"Cannot edit email with status '{email.status.value}'. "
+                "Only draft emails can be edited."
+            ),
         )
 
     if body.subject is not None:

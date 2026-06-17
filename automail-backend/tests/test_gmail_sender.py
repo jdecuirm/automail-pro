@@ -72,14 +72,14 @@ async def test_send_email_includes_list_unsubscribe_header(user_id, mock_credent
 
 
 async def test_send_email_credential_not_found_raises(user_id):
-    from app.services.gmail_sender import CredentialNotFound, send_email
+    from app.services.gmail_sender import CredentialNotFoundError, send_email
 
     mock_session = AsyncMock()
     mock_execute = MagicMock()
     mock_execute.scalar_one_or_none.return_value = None
     mock_session.execute.return_value = mock_execute
 
-    with pytest.raises(CredentialNotFound):
+    with pytest.raises(CredentialNotFoundError):
         await send_email(
             user_id=user_id,
             to="lead@example.com",
@@ -93,7 +93,7 @@ async def test_send_email_credential_not_found_raises(user_id):
 async def test_send_email_401_raises_credential_revoked(user_id, mock_credential):
     from googleapiclient.errors import HttpError
 
-    from app.services.gmail_sender import CredentialRevoked, send_email
+    from app.services.gmail_sender import CredentialRevokedError, send_email
 
     mock_session = AsyncMock()
     mock_execute = MagicMock()
@@ -106,7 +106,7 @@ async def test_send_email_401_raises_credential_revoked(user_id, mock_credential
     mock_service.users().messages().send().execute.side_effect = http_error
 
     with patch("app.services.gmail_sender._build_gmail_service", return_value=mock_service):
-        with pytest.raises(CredentialRevoked):
+        with pytest.raises(CredentialRevokedError):
             await send_email(
                 user_id=user_id,
                 to="lead@example.com",
@@ -123,7 +123,7 @@ async def test_send_email_401_raises_credential_revoked(user_id, mock_credential
 async def test_send_email_403_raises_gmail_rate_limited(user_id, mock_credential):
     from googleapiclient.errors import HttpError
 
-    from app.services.gmail_sender import GmailRateLimited, send_email
+    from app.services.gmail_sender import GmailRateLimitedError, send_email
 
     mock_session = AsyncMock()
     mock_execute = MagicMock()
@@ -136,7 +136,7 @@ async def test_send_email_403_raises_gmail_rate_limited(user_id, mock_credential
     mock_service.users().messages().send().execute.side_effect = http_error
 
     with patch("app.services.gmail_sender._build_gmail_service", return_value=mock_service):
-        with pytest.raises(GmailRateLimited):
+        with pytest.raises(GmailRateLimitedError):
             await send_email(
                 user_id=user_id,
                 to="lead@example.com",

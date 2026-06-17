@@ -11,7 +11,7 @@ from typing import Any
 from sqlalchemy import select
 
 from app.celery_app import celery_app
-from app.services.gmail_sender import CredentialRevoked, GmailRateLimited
+from app.services.gmail_sender import CredentialRevokedError, GmailRateLimitedError
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
     name="emails.send",
     bind=True,
     max_retries=5,
-    autoretry_for=(GmailRateLimited,),
+    autoretry_for=(GmailRateLimitedError,),
     retry_backoff=True,
     retry_backoff_max=600,
     retry_jitter=True,
@@ -93,7 +93,7 @@ def send_email_task(self: Any, email_id: str) -> dict[str, Any]:
                     body_text=email.body_text,
                     session=session,
                 )
-            except CredentialRevoked:
+            except CredentialRevokedError:
                 logger.error("send_email_task: credential revoked user=%s", user_id)
                 email.status = EmailStatus.failed
                 email.error_message = "credential_revoked"
@@ -104,7 +104,7 @@ def send_email_task(self: Any, email_id: str) -> dict[str, Any]:
                     "gmail_message_id": None,
                     "reason": "credential revoked — user must reconnect gmail",
                 }
-            except GmailRateLimited:
+            except GmailRateLimitedError:
                 email.status = EmailStatus.approved  # revert for retry
                 await session.commit()
                 raise  # autoretry_for triggers retry with backoff

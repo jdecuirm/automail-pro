@@ -37,7 +37,8 @@ class Settings(BaseSettings):
     google_client_secret: SecretStr | None = None
     google_redirect_uri: str = "http://localhost:8000/api/oauth/google/callback"
 
-    # Fernet encryption key — generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    # Fernet encryption key — generate with:
+    # python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     fernet_key: SecretStr  # Required — no default, must be set in .env
 
     # App — defaults are dev-only; validator raises if used outside localhost

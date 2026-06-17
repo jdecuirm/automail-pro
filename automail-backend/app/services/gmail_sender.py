@@ -23,7 +23,7 @@ from app.services.encryption import decrypt_str, encrypt_str
 logger = logging.getLogger(__name__)
 
 
-class CredentialNotFound(Exception):
+class CredentialNotFoundError(Exception):
     """No GmailCredential row found for the given user."""
 
 
@@ -31,11 +31,11 @@ class GmailSenderError(Exception):
     """Base class for Gmail API errors."""
 
 
-class CredentialRevoked(GmailSenderError):
+class CredentialRevokedError(GmailSenderError):
     """Gmail access token revoked — user must reconnect."""
 
 
-class GmailRateLimited(GmailSenderError):
+class GmailRateLimitedError(GmailSenderError):
     """Gmail API rate limit hit — Celery task should retry with backoff."""
 
 
@@ -148,9 +148,9 @@ async def send_email(
         The Gmail message ID (string) assigned by Google.
 
     Raises:
-        CredentialNotFound: No gmail_credentials row exists for this user.
-        CredentialRevoked: Google returned 401 — user must re-authorize.
-        GmailRateLimited: Google returned 403 — Celery task should retry.
+        CredentialNotFoundError: No gmail_credentials row exists for this user.
+        CredentialRevokedError: Google returned 401 — user must re-authorize.
+        GmailRateLimitedError: Google returned 403 — Celery task should retry.
         EmailValidationError: Google returned 400 or other API error.
     """
     credential: GmailCredential | None = (
@@ -158,7 +158,7 @@ async def send_email(
     ).scalar_one_or_none()
 
     if credential is None:
-        raise CredentialNotFound(f"No Gmail credential for user {user_id}")
+        raise CredentialNotFoundError(f"No Gmail credential for user {user_id}")
 
     if _is_token_expired(credential.token_expiry):
         logger.info("gmail_sender: refreshing expired token for user=%s", user_id)
@@ -195,9 +195,11 @@ async def send_email(
         if status_code == 401:
             credential.needs_reconnect = True
             await session.commit()
-            raise CredentialRevoked("Gmail access token revoked — user must reconnect") from exc
+            raise CredentialRevokedError(
+                "Gmail access token revoked — user must reconnect"
+            ) from exc
         elif status_code == 403:
-            raise GmailRateLimited("Gmail rate limit exceeded") from exc
+            raise GmailRateLimitedError("Gmail rate limit exceeded") from exc
         else:
             raise EmailValidationError(f"Gmail API error {status_code}: {exc}") from exc
 

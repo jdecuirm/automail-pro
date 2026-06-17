@@ -24,8 +24,9 @@ def test_encryption_different_ciphertexts_same_plaintext():
 
 
 def test_encryption_wrong_key_raises():
-    from app.services.encryption import decrypt_str
     from cryptography.fernet import Fernet, InvalidToken
+
+    from app.services.encryption import decrypt_str
 
     other_key = Fernet.generate_key()
     wrong_fernet = Fernet(other_key)
