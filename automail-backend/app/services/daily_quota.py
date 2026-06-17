@@ -24,7 +24,9 @@ async def _count_sent_today(user_id: uuid.UUID, session: AsyncSession) -> int:
     Returns:
         Number of emails sent by the user since UTC midnight today.
     """
-    today_midnight = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_midnight = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0, tzinfo=None
+    )
     stmt = (
         select(func.count())
         .select_from(Email)
