@@ -124,16 +124,18 @@ def test_exchange_code_for_tokens_returns_expected_keys():
 
 
 def test_refresh_access_token_returns_new_access_token():
-    from app.services.google_oauth import refresh_access_token
-
     from app.services.encryption import encrypt_str
+    from app.services.google_oauth import refresh_access_token
 
     encrypted_refresh = encrypt_str("old-refresh-token")
     encrypted_access = encrypt_str("old-access-token")
 
     mock_creds = MagicMock()
     mock_creds.token = "new-access-token"
-    mock_creds.refresh_token = None  # no rotation
+    # In real google-auth, the refresh token is echoed back unchanged when not
+    # rotated (never None), so the inequality check creds.refresh_token != refresh_token
+    # correctly returns False and "new_refresh_token" is NOT added to the result.
+    mock_creds.refresh_token = "old-refresh-token"  # echoed back, no rotation
     mock_creds.expiry = None
 
     with patch("app.services.google_oauth.Credentials", return_value=mock_creds):
@@ -145,9 +147,8 @@ def test_refresh_access_token_returns_new_access_token():
 
 def test_refresh_access_token_handles_rotation():
     """If Google returns a new refresh_token, it must be included in the result."""
-    from app.services.google_oauth import refresh_access_token
-
     from app.services.encryption import encrypt_str
+    from app.services.google_oauth import refresh_access_token
 
     encrypted_refresh = encrypt_str("old-refresh")
     mock_creds = MagicMock()

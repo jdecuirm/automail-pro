@@ -24,12 +24,14 @@ SCOPES = [
 
 def _create_flow() -> Flow:
     settings = get_settings()
+    if not settings.google_client_secret:
+        raise ValueError(
+            "GOOGLE_CLIENT_SECRET is not configured — set it in .env to use Gmail OAuth"
+        )
     client_config = {
         "web": {
             "client_id": settings.google_client_id,
-            "client_secret": settings.google_client_secret.get_secret_value()
-            if settings.google_client_secret
-            else "",
+            "client_secret": settings.google_client_secret.get_secret_value(),
             "redirect_uris": [settings.google_redirect_uri],
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
