@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import Settings, get_settings
 from app.database import get_db
 from app.models.campaign import Campaign
+from app.models.email import Email, EmailStatus
 from app.models.lead import Lead
 from app.schemas.campaign import CampaignListItem, CampaignResponse
 from app.schemas.csv_upload import CSVUploadResponse
@@ -127,7 +128,6 @@ async def bulk_send_approved(
     settings: Settings = Depends(get_settings),
 ) -> BulkSendResponse:
     """Dispatch send tasks for all approved emails in a campaign, up to daily quota."""
-    from app.models.email import Email, EmailStatus
 
     user_id = uuid.UUID(settings.demo_user_id)
 
