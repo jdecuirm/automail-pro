@@ -40,6 +40,7 @@ async def _get_email_owned(
 
 
 def _to_response(email: Email) -> EmailResponse:
+    # Manual dict required: EmailResponse.lead_name has no direct ORM column.
     return EmailResponse.model_validate(
         {
             "id": email.id,

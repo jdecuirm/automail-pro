@@ -57,9 +57,11 @@ async def test_get_email_returns_detail(email_id, mock_email):
         yield mock_session
 
     app.dependency_overrides[get_db] = _override_db
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.get(f"/api/emails/{email_id}")
-    app.dependency_overrides.pop(get_db, None)
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get(f"/api/emails/{email_id}")
+    finally:
+        app.dependency_overrides.pop(get_db, None)
 
     assert resp.status_code == 200
     data = resp.json()
@@ -79,12 +81,14 @@ async def test_approve_email_dispatches_send_task(email_id, mock_email):
         yield mock_session
 
     app.dependency_overrides[get_db] = _override_db
-
-    with patch("app.api.emails.send_email_task") as mock_task:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            resp = await client.post(f"/api/emails/{email_id}/approve")
-
-    app.dependency_overrides.pop(get_db, None)
+    try:
+        with patch("app.api.emails.send_email_task") as mock_task:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as client:
+                resp = await client.post(f"/api/emails/{email_id}/approve")
+    finally:
+        app.dependency_overrides.pop(get_db, None)
 
     assert resp.status_code == 200
     mock_task.delay.assert_called_once_with(str(email_id))
@@ -102,9 +106,11 @@ async def test_reject_email_changes_status(email_id, mock_email):
         yield mock_session
 
     app.dependency_overrides[get_db] = _override_db
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.post(f"/api/emails/{email_id}/reject")
-    app.dependency_overrides.pop(get_db, None)
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(f"/api/emails/{email_id}/reject")
+    finally:
+        app.dependency_overrides.pop(get_db, None)
 
     assert resp.status_code == 200
     mock_session.commit.assert_called()
@@ -122,9 +128,11 @@ async def test_approve_email_not_found_returns_404():
         yield mock_session
 
     app.dependency_overrides[get_db] = _override_db
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.post(f"/api/emails/{uuid.uuid4()}/approve")
-    app.dependency_overrides.pop(get_db, None)
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(f"/api/emails/{uuid.uuid4()}/approve")
+    finally:
+        app.dependency_overrides.pop(get_db, None)
 
     assert resp.status_code == 404
 
@@ -141,12 +149,14 @@ async def test_patch_email_updates_subject(email_id, mock_email):
         yield mock_session
 
     app.dependency_overrides[get_db] = _override_db
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.patch(
-            f"/api/emails/{email_id}",
-            json={"subject": "Updated Subject"},
-        )
-    app.dependency_overrides.pop(get_db, None)
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.patch(
+                f"/api/emails/{email_id}",
+                json={"subject": "Updated Subject"},
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
 
     assert resp.status_code == 200
     assert mock_email.subject == "Updated Subject"
@@ -168,11 +178,13 @@ async def test_patch_email_already_approved_returns_409(email_id, mock_email):
         yield mock_session
 
     app.dependency_overrides[get_db] = _override_db
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        resp = await client.patch(
-            f"/api/emails/{email_id}",
-            json={"subject": "Attempt"},
-        )
-    app.dependency_overrides.pop(get_db, None)
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.patch(
+                f"/api/emails/{email_id}",
+                json={"subject": "Attempt"},
+            )
+    finally:
+        app.dependency_overrides.pop(get_db, None)
 
     assert resp.status_code == 409
