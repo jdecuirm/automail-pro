@@ -1,0 +1,132 @@
+"""Celery task: send an approved email via the user's Gmail account."""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import uuid
+from datetime import datetime, timezone
+from typing import Any
+
+from sqlalchemy import select
+
+from app.celery_app import celery_app
+from app.services.gmail_sender import CredentialRevoked, GmailRateLimited
+
+logger = logging.getLogger(__name__)
+
+
+@celery_app.task(
+    name="emails.send",
+    bind=True,
+    max_retries=5,
+    autoretry_for=(GmailRateLimited,),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+)
+def send_email_task(self: Any, email_id: str) -> dict[str, Any]:
+    """Send a single approved email via Gmail API.
+
+    Returns:
+        dict with keys: email_id, status ("sent" | "failed" | "skipped"),
+        gmail_message_id (str | None), reason (str | None).
+    """
+    from app.database import get_task_session
+    from app.models.email import Email, EmailStatus
+    from app.models.lead import LeadStatus
+    from app.services import daily_quota, gmail_sender
+
+    email_uuid = uuid.UUID(email_id)
+
+    async def _run() -> dict[str, Any]:
+        async with get_task_session() as session:
+            email: Email | None = (
+                await session.execute(select(Email).where(Email.id == email_uuid))
+            ).scalar_one_or_none()
+
+            if email is None:
+                logger.error("send_email_task: email %s not found", email_id)
+                return {
+                    "email_id": email_id,
+                    "status": "failed",
+                    "gmail_message_id": None,
+                    "reason": "email_not_found",
+                }
+
+            if email.status.value != EmailStatus.approved.value:
+                logger.warning(
+                    "send_email_task: email %s status=%s expected approved — skipping",
+                    email_id,
+                    email.status,
+                )
+                return {
+                    "email_id": email_id,
+                    "status": "skipped",
+                    "gmail_message_id": None,
+                    "reason": f"unexpected_status:{email.status.value}",
+                }
+
+            user_id = email.lead.campaign.user_id
+
+            if not await daily_quota.can_send(user_id, session):
+                logger.warning("send_email_task: quota exceeded user=%s", user_id)
+                email.status = EmailStatus.failed
+                email.error_message = "daily_quota_exceeded"
+                await session.commit()
+                return {
+                    "email_id": email_id,
+                    "status": "failed",
+                    "gmail_message_id": None,
+                    "reason": "daily quota exceeded",
+                }
+
+            email.status = EmailStatus.sending
+            await session.commit()
+
+            try:
+                gmail_id = await gmail_sender.send_email(
+                    user_id=user_id,
+                    to=email.lead.email,
+                    subject=email.subject,
+                    body_html=email.body_html,
+                    body_text=email.body_text,
+                    session=session,
+                )
+            except CredentialRevoked:
+                logger.error("send_email_task: credential revoked user=%s", user_id)
+                email.status = EmailStatus.failed
+                email.error_message = "credential_revoked"
+                await session.commit()
+                return {
+                    "email_id": email_id,
+                    "status": "failed",
+                    "gmail_message_id": None,
+                    "reason": "credential revoked — user must reconnect gmail",
+                }
+            except GmailRateLimited:
+                email.status = EmailStatus.approved  # revert for retry
+                await session.commit()
+                raise  # autoretry_for triggers retry with backoff
+            except Exception as exc:
+                logger.exception("send_email_task: unexpected error email=%s", email_id)
+                email.status = EmailStatus.failed
+                email.error_message = str(exc)[:500]
+                await session.commit()
+                raise
+
+            email.status = EmailStatus.sent
+            email.sent_at = datetime.now(timezone.utc)
+            email.gmail_message_id = gmail_id
+            email.lead.status = LeadStatus.sent
+            await session.commit()
+
+            logger.info("send_email_task: sent email=%s gmail_id=%s", email_id, gmail_id)
+            return {
+                "email_id": email_id,
+                "status": "sent",
+                "gmail_message_id": gmail_id,
+                "reason": None,
+            }
+
+    return asyncio.run(_run())

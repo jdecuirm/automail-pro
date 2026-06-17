@@ -47,5 +47,5 @@ celery_app.conf.include = [
     "app.tasks.smoke",
     "app.tasks.scraping",
     "app.tasks.generation",
-    # "app.tasks.sending",  # Stage G — add when gmail_sender.py is implemented
+    "app.tasks.sending",
 ]
