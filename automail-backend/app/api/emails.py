@@ -89,6 +89,7 @@ async def approve_email(
 
     email.status = EmailStatus.approved
     await session.commit()
+    await session.refresh(email, attribute_names=["updated_at"])
 
     send_email_task.delay(str(email_id))
 
@@ -113,6 +114,7 @@ async def reject_email(
 
     email.status = EmailStatus.rejected
     await session.commit()
+    await session.refresh(email, attribute_names=["updated_at"])
 
     return _to_response(email)
 
@@ -145,4 +147,5 @@ async def update_email(
         email.body_text = body.body_text
 
     await session.commit()
+    await session.refresh(email, attribute_names=["updated_at"])
     return _to_response(email)
