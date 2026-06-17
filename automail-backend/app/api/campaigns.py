@@ -3,15 +3,20 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
 from app.database import get_db
+from app.models.campaign import Campaign
+from app.models.lead import Lead
 from app.schemas.campaign import CampaignListItem, CampaignResponse
 from app.schemas.csv_upload import CSVUploadResponse
-from app.schemas.email import EmailResponse
+from app.schemas.email import BulkSendResponse, EmailResponse
 from app.schemas.lead import LeadPagination
 from app.services import campaign_service
+from app.services.daily_quota import remaining_quota
+from app.tasks.sending import send_email_task
 
 router = APIRouter(prefix="/api/campaigns", tags=["campaigns"])
 
@@ -113,3 +118,56 @@ async def list_campaign_emails(
     if result is None:
         raise HTTPException(status_code=404, detail="Campaign not found.")
     return result
+
+
+@router.post("/{campaign_id}/send-approved", response_model=BulkSendResponse)
+async def bulk_send_approved(
+    campaign_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> BulkSendResponse:
+    """Dispatch send tasks for all approved emails in a campaign, up to daily quota."""
+    from app.models.email import Email, EmailStatus
+
+    user_id = uuid.UUID(settings.demo_user_id)
+
+    # Raw ORM lookup — avoids CampaignResponse.model_validate so this endpoint
+    # doesn't pull in the full campaign serialization path.
+    campaign = (
+        await session.execute(
+            select(Campaign).where(
+                Campaign.id == campaign_id,
+                Campaign.user_id == user_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if campaign is None:
+        raise HTTPException(status_code=404, detail="Campaign not found.")
+
+    approved_emails = (
+        (
+            await session.execute(
+                select(Email)
+                .join(Lead, Email.lead_id == Lead.id)
+                .where(
+                    Lead.campaign_id == campaign_id,
+                    Email.status == EmailStatus.approved,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    quota_left = await remaining_quota(user_id, session)
+    to_dispatch = approved_emails[:quota_left]
+    blocked = approved_emails[quota_left:]
+
+    for email in to_dispatch:
+        send_email_task.delay(str(email.id))
+
+    return BulkSendResponse(
+        dispatched=len(to_dispatch),
+        blocked_by_quota=len(blocked),
+        remaining_quota_today=max(0, quota_left - len(to_dispatch)),
+    )
