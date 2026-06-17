@@ -13,7 +13,7 @@ from app.config import get_settings
 def get_fernet() -> Fernet:
     """Return cached Fernet instance using settings.fernet_key."""
     key = get_settings().fernet_key.get_secret_value()
-    return Fernet(key.encode() if isinstance(key, str) else key)
+    return Fernet(key.encode())
 
 
 def encrypt_str(plaintext: str) -> bytes:
