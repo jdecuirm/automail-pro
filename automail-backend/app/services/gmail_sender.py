@@ -27,15 +27,19 @@ class CredentialNotFound(Exception):
     """No GmailCredential row found for the given user."""
 
 
-class CredentialRevoked(Exception):
+class GmailSenderError(Exception):
+    """Base class for Gmail API errors."""
+
+
+class CredentialRevoked(GmailSenderError):
     """Gmail access token revoked — user must reconnect."""
 
 
-class GmailRateLimited(Exception):
+class GmailRateLimited(GmailSenderError):
     """Gmail API rate limit hit — Celery task should retry with backoff."""
 
 
-class EmailValidationError(Exception):
+class EmailValidationError(GmailSenderError):
     """Gmail API rejected the message as malformed."""
 
 

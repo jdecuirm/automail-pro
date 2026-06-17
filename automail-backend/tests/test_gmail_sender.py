@@ -91,8 +91,9 @@ async def test_send_email_credential_not_found_raises(user_id):
 
 
 async def test_send_email_401_raises_credential_revoked(user_id, mock_credential):
-    from app.services.gmail_sender import CredentialRevoked, send_email
     from googleapiclient.errors import HttpError
+
+    from app.services.gmail_sender import CredentialRevoked, send_email
 
     mock_session = AsyncMock()
     mock_execute = MagicMock()
@@ -120,8 +121,9 @@ async def test_send_email_401_raises_credential_revoked(user_id, mock_credential
 
 
 async def test_send_email_403_raises_gmail_rate_limited(user_id, mock_credential):
-    from app.services.gmail_sender import GmailRateLimited, send_email
     from googleapiclient.errors import HttpError
+
+    from app.services.gmail_sender import GmailRateLimited, send_email
 
     mock_session = AsyncMock()
     mock_execute = MagicMock()
@@ -151,6 +153,10 @@ async def test_token_refresh_when_expired(user_id, mock_credential):
 
     mock_credential.token_expiry = datetime.now(timezone.utc) - timedelta(minutes=1)
 
+    # Capture the encrypted bytes *before* send_email overwrites them post-refresh.
+    expected_refresh_token = mock_credential.encrypted_refresh_token
+    expected_access_token = mock_credential.encrypted_access_token
+
     mock_session = AsyncMock()
     mock_execute = MagicMock()
     mock_execute.scalar_one_or_none.return_value = mock_credential
@@ -158,7 +164,6 @@ async def test_token_refresh_when_expired(user_id, mock_credential):
 
     mock_service = MagicMock()
     mock_service.users().messages().send().execute.return_value = {"id": "msg-refreshed"}
-
 
     new_token_data = {
         "access_token": "new-access",
@@ -179,5 +184,8 @@ async def test_token_refresh_when_expired(user_id, mock_credential):
                 session=mock_session,
             )
 
-    mock_refresh.assert_called_once()
+    mock_refresh.assert_called_once_with(
+        expected_refresh_token,
+        expected_access_token,
+    )
     assert gmail_id == "msg-refreshed"
