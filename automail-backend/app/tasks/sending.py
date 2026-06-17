@@ -32,9 +32,11 @@ def send_email_task(self: Any, email_id: str) -> dict[str, Any]:
         dict with keys: email_id, status ("sent" | "failed" | "skipped"),
         gmail_message_id (str | None), reason (str | None).
     """
+    from sqlalchemy.orm import selectinload
+
     from app.database import get_task_session
     from app.models.email import Email, EmailStatus
-    from app.models.lead import LeadStatus
+    from app.models.lead import Lead, LeadStatus
     from app.services import daily_quota, gmail_sender
 
     email_uuid = uuid.UUID(email_id)
@@ -42,7 +44,11 @@ def send_email_task(self: Any, email_id: str) -> dict[str, Any]:
     async def _run() -> dict[str, Any]:
         async with get_task_session() as session:
             email: Email | None = (
-                await session.execute(select(Email).where(Email.id == email_uuid))
+                await session.execute(
+                    select(Email)
+                    .options(selectinload(Email.lead).selectinload(Lead.campaign))
+                    .where(Email.id == email_uuid)
+                )
             ).scalar_one_or_none()
 
             if email is None:
