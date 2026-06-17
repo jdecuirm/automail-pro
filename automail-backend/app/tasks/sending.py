@@ -54,7 +54,7 @@ def send_email_task(self: Any, email_id: str) -> dict[str, Any]:
                     "reason": "email_not_found",
                 }
 
-            if email.status.value != EmailStatus.approved.value:
+            if email.status != EmailStatus.approved:
                 logger.warning(
                     "send_email_task: email %s status=%s expected approved — skipping",
                     email_id,
