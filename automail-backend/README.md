@@ -207,3 +207,128 @@ uv run alembic downgrade -1
 # Roll back to clean state
 uv run alembic downgrade base
 ```
+
+## Gmail OAuth 2.0 Setup
+
+AutoMail Pro sends emails using the user's own Gmail account via delegated OAuth 2.0.
+
+### 1. Create a Google Cloud project
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project (or use an existing one)
+3. Enable the **Gmail API**: APIs & Services → Enable APIs → search "Gmail API" → Enable
+4. Enable the **People API** (needed for userinfo): same flow, search "People API"
+
+### 2. Create OAuth credentials
+
+1. APIs & Services → Credentials → Create Credentials → OAuth 2.0 Client IDs
+2. Application type: **Web application**
+3. Authorized redirect URIs: `http://localhost:8000/api/oauth/google/callback`
+4. Download the client JSON — extract `client_id` and `client_secret`
+
+### 3. Configure OAuth consent screen
+
+1. APIs & Services → OAuth consent screen
+2. User type: **External** (for testing with any Gmail account)
+3. App name: `AutoMail Pro (Dev)`, support email: your email
+4. Scopes: add `gmail.send` and `userinfo.email`
+5. Test users: add the Gmail address you'll test with
+6. Status: keep in **Testing** mode (no Google verification needed for portfolio)
+
+### 4. Set environment variables
+
+```env
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:8000/api/oauth/google/callback
+FERNET_KEY=<generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())">
+```
+
+---
+
+## Sending Emails — End-to-End Flow
+
+### Prerequisites
+
+```bash
+# Start services
+sudo systemctl start postgresql-18 redis
+
+# Start FastAPI
+uv run uvicorn app.main:app --reload
+
+# Start Celery worker (new terminal)
+uv run celery -A app.celery_app:celery_app worker --loglevel=info -n automail@%h --concurrency=4
+```
+
+### Step 1: Connect Gmail
+
+Navigate to in your browser (or use curl):
+
+```
+http://localhost:8000/api/oauth/google/authorize
+```
+
+This redirects to Google's consent screen. Authorize the app. You'll be redirected back to the frontend URL with `?oauth_success=true`.
+
+Verify connection:
+
+```bash
+curl http://localhost:8000/api/oauth/google/status
+# {"connected":true,"email_address":"you@gmail.com","needs_reconnect":false}
+```
+
+### Step 2: Create a campaign with your email as the lead
+
+```bash
+# Create test.csv
+echo "name,email,company,website
+Test Me,you@gmail.com,My Company,https://example.com" > /tmp/test.csv
+
+# Upload
+curl -X POST http://localhost:8000/api/campaigns \
+  -F "name=E2E Test Campaign" \
+  -F "file=@/tmp/test.csv"
+# Returns {"campaign_id":"<ID>", ...}
+```
+
+### Step 3: Wait for pipeline (scrape + generate)
+
+```bash
+# Poll leads until status=drafted (typically 30–60 seconds)
+curl http://localhost:8000/api/campaigns/<CAMPAIGN_ID>/leads
+
+# Check generated email
+curl http://localhost:8000/api/campaigns/<CAMPAIGN_ID>/emails
+# Returns array with email draft — note the email id
+```
+
+### Step 4: Approve and send
+
+```bash
+curl -X POST http://localhost:8000/api/emails/<EMAIL_ID>/approve
+# Returns email with status=approved
+
+# The send task is dispatched. Poll until status=sent:
+curl http://localhost:8000/api/emails/<EMAIL_ID>
+# {"status":"sent","gmail_message_id":"<GMAIL_ID>", ...}
+```
+
+### Step 5: Verify in Gmail
+
+Check your inbox — the email should arrive from your own Gmail address.
+
+### Daily quota
+
+The default limit is 50 emails/day per account (Gmail free tier). Override in `.env`:
+
+```env
+MAX_EMAILS_PER_USER_PER_DAY=50
+```
+
+### Bulk send all approved emails
+
+```bash
+curl -X POST http://localhost:8000/api/campaigns/<CAMPAIGN_ID>/send-approved
+# {"dispatched":5,"blocked_by_quota":0,"remaining_quota_today":45}
+```
