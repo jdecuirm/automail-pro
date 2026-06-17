@@ -33,7 +33,7 @@ async def authorize(
     settings: Settings = Depends(get_settings),
 ) -> RedirectResponse:
     """Redirect the user to Google's OAuth consent screen."""
-    user_id = settings.demo_user_id
+    user_id = str(uuid.UUID(settings.demo_user_id))
     state = google_oauth.sign_state(user_id, settings.app_secret_key.get_secret_value())
     auth_url = google_oauth.build_auth_url(state)
     return RedirectResponse(url=auth_url)
@@ -96,7 +96,7 @@ async def callback(
         )
 
     await session.commit()
-    logger.info("oauth_callback: gmail connected for user=%s email=%s", user_id, tokens["email"])
+    logger.info("oauth_callback: gmail connected for user=%s", user_id)
     return RedirectResponse(url=f"{frontend_url}?oauth_success=true")
 
 
