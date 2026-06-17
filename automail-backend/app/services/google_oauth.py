@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import secrets
 import time
 from typing import Any
 
@@ -20,6 +21,10 @@ SCOPES = [
     "https://www.googleapis.com/auth/userinfo.email",
     "openid",
 ]
+
+# PKCE code verifiers keyed by signed state. Single-process dev store — sufficient
+# for a single-user portfolio app running one uvicorn worker.
+_pkce_store: dict[str, str] = {}
 
 
 def _create_flow() -> Flow:
@@ -103,7 +108,11 @@ def verify_state(state: str, secret: str, max_age: int = 600) -> str:
 
 
 def build_auth_url(state: str) -> str:
-    """Build the Google OAuth consent URL with the signed state parameter.
+    """Build the Google OAuth consent URL with PKCE and the signed state parameter.
+
+    Generates a PKCE code_verifier, stores it keyed by ``state``, and embeds the
+    corresponding code_challenge in the authorization URL. The verifier is consumed
+    by ``exchange_code_for_tokens`` during the callback.
 
     Args:
         state: Signed state token to embed in the URL for CSRF protection.
@@ -112,25 +121,44 @@ def build_auth_url(state: str) -> str:
         The full authorization URL to redirect the user to.
     """
     flow = _create_flow()
+
+    # PKCE S256: verifier is random, challenge is base64url(sha256(verifier))
+    code_verifier = secrets.token_urlsafe(96)
+    code_challenge = (
+        base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode()).digest())
+        .rstrip(b"=")
+        .decode()
+    )
+    _pkce_store[state] = code_verifier
+
     auth_url, _ = flow.authorization_url(
         access_type="offline",
         prompt="consent",
         state=state,
+        code_challenge=code_challenge,
+        code_challenge_method="S256",
     )
     return auth_url
 
 
-def exchange_code_for_tokens(code: str) -> dict[str, Any]:
+def exchange_code_for_tokens(code: str, state: str | None = None) -> dict[str, Any]:
     """Exchange an authorization code for access + refresh tokens and user email.
+
+    Retrieves the PKCE code_verifier stored during ``build_auth_url`` and passes it
+    to the token endpoint. The verifier entry is consumed (deleted) on first use.
 
     Args:
         code: The authorization code returned by Google after user consent.
+        state: The signed state parameter from the callback, used to look up
+            the PKCE verifier. Pass None only in tests where PKCE is mocked.
 
     Returns:
         Dict with keys: access_token, refresh_token, expiry (datetime | None), email.
     """
     flow = _create_flow()
-    flow.fetch_token(code=code)
+
+    code_verifier = _pkce_store.pop(state, None) if state else None
+    flow.fetch_token(code=code, code_verifier=code_verifier)
     creds = flow.credentials
 
     email = _get_email_from_token(creds.id_token, creds.token)

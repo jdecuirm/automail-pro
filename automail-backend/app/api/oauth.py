@@ -62,7 +62,7 @@ async def callback(
         return RedirectResponse(url=f"{frontend_url}?oauth_error=invalid_state")
 
     try:
-        tokens = google_oauth.exchange_code_for_tokens(code)
+        tokens = google_oauth.exchange_code_for_tokens(code, state=state)
     except Exception as exc:
         logger.error("oauth_callback: token exchange failed — %s", exc)
         return RedirectResponse(url=f"{frontend_url}?oauth_error=token_exchange_failed")
