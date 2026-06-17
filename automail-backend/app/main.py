@@ -9,6 +9,7 @@ from app.api.campaigns import router as campaigns_router
 from app.api.emails import router as emails_router
 from app.api.oauth import router as oauth_router
 from app.api.tasks import router as tasks_router
+from app.api.tracking import router as tracking_router
 from app.config import get_settings
 
 logging.basicConfig(
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
     application.include_router(emails_router)
     application.include_router(tasks_router)
     application.include_router(oauth_router)
+    application.include_router(tracking_router)
 
     return application
 
