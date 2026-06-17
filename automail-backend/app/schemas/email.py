@@ -18,5 +18,20 @@ class EmailResponse(BaseModel):
     body_text: str
     body_html: str
     status: EmailStatus
+    sent_at: datetime | None = None
+    gmail_message_id: str | None = None
+    error_message: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class EmailUpdateRequest(BaseModel):
+    subject: str | None = None
+    body_html: str | None = None
+    body_text: str | None = None
+
+
+class BulkSendResponse(BaseModel):
+    dispatched: int
+    blocked_by_quota: int
+    remaining_quota_today: int
