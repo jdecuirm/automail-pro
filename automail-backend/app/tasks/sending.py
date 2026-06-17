@@ -122,7 +122,7 @@ def send_email_task(self: Any, email_id: str) -> dict[str, Any]:
                 raise
 
             email.status = EmailStatus.sent
-            email.sent_at = datetime.now(timezone.utc)
+            email.sent_at = datetime.now(timezone.utc).replace(tzinfo=None)
             email.gmail_message_id = gmail_id
             email.lead.status = LeadStatus.sent
             await session.commit()
