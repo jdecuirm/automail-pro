@@ -20,18 +20,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import CampaignStatusBadge from "@/components/campaigns/CampaignStatusBadge";
 import CampaignProgress from "@/components/campaigns/CampaignProgress";
+import LeadsTable from "@/components/leads/LeadsTable";
 import { useCampaign } from "@/hooks/useCampaign";
 import { deleteCampaign } from "@/api/campaigns";
 import { fullDateTime } from "@/lib/format";
-
-// Placeholder for Leads tab (Task 7)
-function LeadsTabPlaceholder() {
-  return (
-    <div className="py-12 text-center text-sm text-muted-foreground">
-      Leads table coming in the next step…
-    </div>
-  );
-}
 
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
@@ -188,7 +180,10 @@ export default function CampaignDetail() {
 
         {/* Leads tab */}
         <TabsContent value="leads" className="pt-4">
-          <LeadsTabPlaceholder />
+          <LeadsTable
+            campaignId={campaign.id}
+            campaignStatus={campaign.status}
+          />
         </TabsContent>
       </Tabs>
     </div>
