@@ -49,6 +49,8 @@ export interface CampaignStats {
   generating: number;
   drafted: number;
   approved: number;
+  rejected: number;
+  sending: number;
   sent: number;
   opened: number;
   failed: number;

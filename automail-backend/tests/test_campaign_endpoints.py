@@ -277,3 +277,128 @@ async def test_list_emails_campaign_not_found(campaign_client):
 
     resp = await campaign_client.get(f"/api/campaigns/{uuid.uuid4()}/emails")
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Campaign stats
+# ---------------------------------------------------------------------------
+
+
+async def test_get_campaign_includes_stats_object(campaign_client: AsyncClient) -> None:
+    """GET /api/campaigns/{id} must include a stats object with all 11 counters."""
+    with patch("app.services.campaign_service.scrape_lead") as mock_task:
+        mock_task.delay = MagicMock()
+        create_resp = await campaign_client.post(
+            "/api/campaigns",
+            files=_csv_file("valid.csv", _VALID_CSV),
+            data={"name": "Stats Shape Test"},
+        )
+    campaign_id = create_resp.json()["campaign_id"]
+
+    resp = await campaign_client.get(f"/api/campaigns/{campaign_id}")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "stats" in body
+    stats = body["stats"]
+    expected_keys = {
+        "uploaded",
+        "scraping",
+        "researched",
+        "generating",
+        "drafted",
+        "approved",
+        "rejected",
+        "sending",
+        "sent",
+        "opened",
+        "failed",
+    }
+    assert set(stats.keys()) == expected_keys
+    for key in expected_keys:
+        assert isinstance(stats[key], int)
+
+
+async def test_get_campaign_stats_match_lead_counts(
+    campaign_client: AsyncClient,
+    transactional_session,
+) -> None:
+    """Stats counters must reflect actual per-status lead counts."""
+    import uuid as uuid_mod
+
+    from app.config import get_settings
+    from app.models.campaign import Campaign, CampaignStatus
+    from app.models.lead import Lead, LeadStatus
+
+    settings = get_settings()
+    campaign = Campaign(
+        user_id=uuid_mod.UUID(settings.demo_user_id),
+        name="Stats Count Test",
+        status=CampaignStatus.scraping,
+        total_leads=5,
+    )
+    transactional_session.add(campaign)
+    await transactional_session.flush()
+
+    statuses = [
+        LeadStatus.uploaded,
+        LeadStatus.uploaded,
+        LeadStatus.researched,
+        LeadStatus.researched,
+        LeadStatus.drafted,
+    ]
+    for i, status in enumerate(statuses):
+        transactional_session.add(
+            Lead(
+                campaign_id=campaign.id,
+                name=f"Lead {i}",
+                email=f"lead{i}@test.com",
+                status=status,
+            )
+        )
+    await transactional_session.flush()
+
+    resp = await campaign_client.get(f"/api/campaigns/{campaign.id}")
+    assert resp.status_code == 200
+    stats = resp.json()["stats"]
+    assert stats["uploaded"] == 2
+    assert stats["researched"] == 2
+    assert stats["drafted"] == 1
+    # All other statuses are zero
+    for key in (
+        "scraping",
+        "generating",
+        "approved",
+        "rejected",
+        "sending",
+        "sent",
+        "opened",
+        "failed",
+    ):
+        assert stats[key] == 0
+
+
+async def test_get_campaign_stats_zero_when_no_leads(
+    campaign_client: AsyncClient,
+    transactional_session,
+) -> None:
+    """A campaign with no leads must return all stats at zero."""
+    import uuid as uuid_mod
+
+    from app.config import get_settings
+    from app.models.campaign import Campaign, CampaignStatus
+
+    settings = get_settings()
+    campaign = Campaign(
+        user_id=uuid_mod.UUID(settings.demo_user_id),
+        name="Empty Stats Test",
+        status=CampaignStatus.draft,
+        total_leads=0,
+    )
+    transactional_session.add(campaign)
+    await transactional_session.flush()
+
+    resp = await campaign_client.get(f"/api/campaigns/{campaign.id}")
+    assert resp.status_code == 200
+    stats = resp.json()["stats"]
+    for val in stats.values():
+        assert val == 0

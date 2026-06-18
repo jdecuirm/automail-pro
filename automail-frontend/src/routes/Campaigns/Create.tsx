@@ -56,7 +56,7 @@ export default function CreateCampaign() {
     mutationFn: (values: FormValues) => {
       const formData = new FormData();
       formData.append("name", values.name);
-      formData.append("csv_file", csvFile!);
+      formData.append("file", csvFile!);
       return createCampaign(formData);
     },
     onSuccess(data) {
@@ -75,9 +75,9 @@ export default function CreateCampaign() {
     },
   });
 
-  function handleFile(file: File) {
-    setCsvFile(file);
-    void parse(file);
+  async function handleFile(file: File) {
+    const valid = await parse(file);
+    setCsvFile(valid ? file : null);
   }
 
   function handleClear() {
@@ -99,6 +99,7 @@ export default function CreateCampaign() {
   const canSubmit =
     form.formState.isValid &&
     csvFile !== null &&
+    fileError === null &&
     !hasHeaderErrors &&
     !mutation.isPending;
 

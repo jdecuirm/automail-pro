@@ -1,4 +1,5 @@
 import type { CampaignResponse } from "@/types/api";
+import { mergeStats } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
@@ -30,7 +31,8 @@ function StatCard({
 }
 
 export default function CampaignProgress({ campaign }: CampaignProgressProps) {
-  const { stats, total_leads } = campaign;
+  const stats = mergeStats(campaign.stats);
+  const { total_leads } = campaign;
   const processed =
     stats.drafted + stats.approved + stats.sent + stats.opened + stats.failed;
   const progressPct =

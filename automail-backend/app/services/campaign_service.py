@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.email import Email
 from app.models.lead import Lead, LeadStatus
-from app.schemas.campaign import CampaignListItem, CampaignResponse
+from app.schemas.campaign import CampaignListItem, CampaignResponse, CampaignStats
 from app.schemas.csv_upload import CSVUploadResponse
 from app.schemas.email import EmailResponse
 from app.schemas.lead import LeadPagination, LeadResponse
@@ -102,7 +102,38 @@ async def get_campaign(
     campaign = (await session.execute(stmt)).scalar_one_or_none()
     if campaign is None:
         return None
-    return CampaignResponse.model_validate(campaign)
+
+    stats_rows = (
+        await session.execute(
+            select(Lead.status, func.count(Lead.id))
+            .where(Lead.campaign_id == campaign_id)
+            .group_by(Lead.status)
+        )
+    ).all()
+    stats_dict = {row[0].value: row[1] for row in stats_rows}
+    stats = CampaignStats(
+        uploaded=stats_dict.get("uploaded", 0),
+        scraping=stats_dict.get("scraping", 0),
+        researched=stats_dict.get("researched", 0),
+        generating=stats_dict.get("generating", 0),
+        drafted=stats_dict.get("drafted", 0),
+        approved=stats_dict.get("approved", 0),
+        rejected=stats_dict.get("rejected", 0),
+        sending=stats_dict.get("sending", 0),
+        sent=stats_dict.get("sent", 0),
+        opened=stats_dict.get("opened", 0),
+        failed=stats_dict.get("failed", 0),
+    )
+    return CampaignResponse(
+        id=campaign.id,
+        name=campaign.name,
+        status=campaign.status,
+        csv_filename=campaign.csv_filename,
+        total_leads=campaign.total_leads,
+        stats=stats,
+        created_at=campaign.created_at,
+        updated_at=campaign.updated_at,
+    )
 
 
 async def list_leads(

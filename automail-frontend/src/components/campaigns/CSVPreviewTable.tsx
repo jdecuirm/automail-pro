@@ -8,7 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import type { CSVParseResult } from "@/lib/csv";
 
 interface CSVPreviewTableProps {
@@ -43,30 +42,35 @@ export default function CSVPreviewTable({ result }: CSVPreviewTableProps) {
         </p>
       </div>
 
-      <ScrollArea className="h-52 rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {headers.map((h) => (
-                <TableHead key={h} className="text-xs whitespace-nowrap">
-                  {h}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row, i) => (
-              <TableRow key={i}>
+      <div className="rounded-md border overflow-x-auto max-w-full">
+        <div className="h-52 overflow-y-auto">
+          <Table className="min-w-full">
+            <TableHeader>
+              <TableRow>
                 {headers.map((h) => (
-                  <TableCell key={h} className="text-xs max-w-[160px] truncate">
-                    {row[h] ?? ""}
-                  </TableCell>
+                  <TableHead key={h} className="text-xs whitespace-nowrap">
+                    {h}
+                  </TableHead>
                 ))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </ScrollArea>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row, i) => (
+                <TableRow key={i}>
+                  {headers.map((h) => (
+                    <TableCell
+                      key={h}
+                      className="text-xs whitespace-nowrap min-w-[120px]"
+                    >
+                      {row[h] ?? ""}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
     </div>
   );
 }

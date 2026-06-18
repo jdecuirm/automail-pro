@@ -15,7 +15,23 @@ class CampaignListItem(BaseModel):
     name: str
     status: CampaignStatus
     total_leads: int
+    csv_filename: str | None = None
     created_at: datetime
+    updated_at: datetime
+
+
+class CampaignStats(BaseModel):
+    uploaded: int = 0
+    scraping: int = 0
+    researched: int = 0
+    generating: int = 0
+    drafted: int = 0
+    approved: int = 0
+    rejected: int = 0
+    sending: int = 0
+    sent: int = 0
+    opened: int = 0
+    failed: int = 0
 
 
 class CampaignResponse(BaseModel):
@@ -26,5 +42,6 @@ class CampaignResponse(BaseModel):
     status: CampaignStatus
     csv_filename: str | None
     total_leads: int
+    stats: CampaignStats
     created_at: datetime
     updated_at: datetime
