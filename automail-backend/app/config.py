@@ -66,6 +66,10 @@ class Settings(BaseSettings):
     # Demo auth — temporary until Stage J introduces real user management
     demo_user_id: str = "00000000-0000-0000-0000-000000000001"
 
+    # Sender profile — shown in email sign-offs (replace [YOUR_NAME] placeholder)
+    # Long-term: move to users table once auth/profile UI is added
+    sender_name: str = "Your Name"
+
     # CSV upload limits
     csv_max_size_mb: int = 5
     csv_max_rows: int = 10_000

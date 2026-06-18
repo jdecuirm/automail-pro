@@ -30,6 +30,7 @@ def test_send_task_success_updates_email_and_lead():
     mock_session = AsyncMock()
     mock_execute = MagicMock()
     mock_execute.scalar_one_or_none.return_value = mock_email
+    mock_execute.scalar_one.return_value = 0  # complete_campaign_if_done count query
     mock_session.execute.return_value = mock_execute
 
     @contextlib.asynccontextmanager
@@ -69,6 +70,7 @@ def test_send_task_quota_exceeded_marks_failed_no_retry():
     mock_session = AsyncMock()
     mock_execute = MagicMock()
     mock_execute.scalar_one_or_none.return_value = mock_email
+    mock_execute.scalar_one.return_value = 0  # complete_campaign_if_done count query
     mock_session.execute.return_value = mock_execute
 
     @contextlib.asynccontextmanager
@@ -106,6 +108,7 @@ def test_send_task_credential_revoked_marks_failed_no_retry():
     mock_session = AsyncMock()
     mock_execute = MagicMock()
     mock_execute.scalar_one_or_none.return_value = mock_email
+    mock_execute.scalar_one.return_value = 0  # complete_campaign_if_done count query
     mock_session.execute.return_value = mock_execute
 
     @contextlib.asynccontextmanager
@@ -154,6 +157,7 @@ def test_send_task_injects_tracking_pixel():
     mock_session = AsyncMock()
     mock_execute = MagicMock()
     mock_execute.scalar_one_or_none.return_value = mock_email
+    mock_execute.scalar_one.return_value = 0  # complete_campaign_if_done count query
     mock_session.execute.return_value = mock_execute
 
     @contextlib.asynccontextmanager
@@ -209,6 +213,7 @@ def test_send_task_injects_pixel_case_insensitive_body_tag():
     mock_session = AsyncMock()
     mock_execute = MagicMock()
     mock_execute.scalar_one_or_none.return_value = mock_email
+    mock_execute.scalar_one.return_value = 0  # complete_campaign_if_done count query
     mock_session.execute.return_value = mock_execute
 
     @contextlib.asynccontextmanager

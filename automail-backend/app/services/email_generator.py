@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.email import Email, EmailStatus
 from app.models.lead import Lead, LeadStatus
 from app.models.lead_research import LeadResearch
+from app.services.campaign_advance import advance_campaign_if_done
 from app.services.llm_client import complete
 
 logger = logging.getLogger(__name__)
@@ -125,6 +126,7 @@ async def generate_email_draft(lead_id: uuid.UUID, session: AsyncSession) -> Ema
         logger.warning("email_generator: no research for lead=%s — marking failed", lead_id)
         lead.status = LeadStatus.failed
         lead.error_message = "No research data available for email generation"
+        await advance_campaign_if_done(lead, session)
         await session.commit()
         return None
 
@@ -147,8 +149,14 @@ async def generate_email_draft(lead_id: uuid.UUID, session: AsyncSession) -> Ema
         logger.error("email_generator: Claude call failed for lead=%s: %s", lead_id, exc)
         lead.status = LeadStatus.failed
         lead.error_message = f"generation_failed: {exc}"
+        await advance_campaign_if_done(lead, session)
         await session.commit()
         return None
+
+    # Replace the sender placeholder Claude was instructed to leave.
+    # Long-term: pull sender_name from the user's profile once auth is added.
+    for field in ("body_text", "body_html"):
+        parsed[field] = parsed[field].replace("[YOUR_NAME]", settings.sender_name)
 
     email = Email(
         lead_id=lead.id,
@@ -160,6 +168,7 @@ async def generate_email_draft(lead_id: uuid.UUID, session: AsyncSession) -> Ema
     session.add(email)
     lead.status = LeadStatus.drafted
     lead.error_message = None
+    await advance_campaign_if_done(lead, session)
     await session.commit()
 
     logger.info("email_generator: lead=%s → drafted (subject=%r)", lead_id, parsed["subject"])

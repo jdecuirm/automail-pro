@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Trash2, Mail, Send, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -21,7 +23,14 @@ import {
 import CampaignStatusBadge from "@/components/campaigns/CampaignStatusBadge";
 import CampaignProgress from "@/components/campaigns/CampaignProgress";
 import LeadsTable from "@/components/leads/LeadsTable";
+import EmailReviewCard from "@/components/emails/EmailReviewCard";
+import BulkSendDialog from "@/components/emails/BulkSendDialog";
+import EmptyState from "@/components/common/EmptyState";
+import StatsCards from "@/components/metrics/StatsCards";
+import CampaignFunnel from "@/components/metrics/CampaignFunnel";
+import OpenRateChart from "@/components/metrics/OpenRateChart";
 import { useCampaign } from "@/hooks/useCampaign";
+import { useCampaignEmails } from "@/hooks/useCampaignEmails";
 import { deleteCampaign } from "@/api/campaigns";
 import { fullDateTime } from "@/lib/format";
 
@@ -30,6 +39,25 @@ export default function CampaignDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: campaign, isPending, isError } = useCampaign(id ?? "");
+
+  // Must be called unconditionally (Rules of Hooks) — before any early returns
+  const [emailSearch, setEmailSearch] = useState("");
+  const [bulkSendOpen, setBulkSendOpen] = useState(false);
+  const { data: emails = [], isPending: emailsPending } = useCampaignEmails(
+    id ?? "",
+    campaign?.status,
+  );
+
+  const filteredEmails = emails.filter((e) => {
+    const q = emailSearch.toLowerCase();
+    return (
+      e.lead_name.toLowerCase().includes(q) ||
+      e.lead_email.toLowerCase().includes(q) ||
+      (e.lead_company?.toLowerCase().includes(q) ?? false)
+    );
+  });
+
+  const approvedCount = emails.filter((e) => e.status === "approved").length;
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteCampaign(id ?? ""),
@@ -123,12 +151,8 @@ export default function CampaignDetail() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="leads">Leads</TabsTrigger>
-          <TabsTrigger value="emails" disabled>
-            Emails
-          </TabsTrigger>
-          <TabsTrigger value="metrics" disabled>
-            Metrics
-          </TabsTrigger>
+          <TabsTrigger value="emails">Emails</TabsTrigger>
+          <TabsTrigger value="metrics">Metrics</TabsTrigger>
         </TabsList>
 
         {/* Overview tab */}
@@ -184,6 +208,105 @@ export default function CampaignDetail() {
             campaignId={campaign.id}
             campaignStatus={campaign.status}
           />
+        </TabsContent>
+
+        {/* Emails tab */}
+        <TabsContent value="emails" className="space-y-4 pt-4">
+          {/* Toolbar */}
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Search emails…"
+                value={emailSearch}
+                onChange={(e) => setEmailSearch(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            <Button
+              size="sm"
+              className="gap-2 shrink-0"
+              disabled={approvedCount === 0}
+              onClick={() => setBulkSendOpen(true)}
+            >
+              <Send className="h-4 w-4" />
+              Send all approved
+              {approvedCount > 0 && (
+                <span className="ml-1 rounded-full bg-primary-foreground/20 px-1.5 text-xs tabular-nums">
+                  {approvedCount}
+                </span>
+              )}
+            </Button>
+          </div>
+
+          {/* Skeleton */}
+          {emailsPending && (
+            <div className="space-y-3">
+              {[1, 2, 3].map((n) => (
+                <Skeleton key={n} className="h-32 w-full" />
+              ))}
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!emailsPending && filteredEmails.length === 0 && (
+            <EmptyState
+              icon={Mail}
+              title={
+                emailSearch ? "No emails match your search" : "No emails yet"
+              }
+              description={
+                emailSearch
+                  ? "Try a different name, email, or company."
+                  : "Emails will appear here once the pipeline has generated drafts."
+              }
+            />
+          )}
+
+          {/* Email cards */}
+          {!emailsPending && filteredEmails.length > 0 && (
+            <div className="space-y-3">
+              {filteredEmails.map((email) => (
+                <EmailReviewCard
+                  key={email.id}
+                  email={email}
+                  campaignId={campaign.id}
+                />
+              ))}
+            </div>
+          )}
+
+          <BulkSendDialog
+            open={bulkSendOpen}
+            onClose={() => setBulkSendOpen(false)}
+            campaignId={campaign.id}
+            emails={emails}
+          />
+        </TabsContent>
+
+        {/* Metrics tab */}
+        <TabsContent value="metrics" className="space-y-6 pt-4">
+          <StatsCards campaign={campaign} />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">
+                Pipeline Funnel
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CampaignFunnel campaign={campaign} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">Open Rate</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <OpenRateChart campaign={campaign} />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

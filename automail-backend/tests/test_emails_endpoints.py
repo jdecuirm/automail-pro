@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -40,6 +40,8 @@ def mock_email(email_id, lead_id):
     email.updated_at = MagicMock()
     email.lead = MagicMock()
     email.lead.name = "Test Lead"
+    email.lead.email = "test@example.com"
+    email.lead.company = None
     email.lead.campaign = MagicMock()
     email.lead.campaign.user_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
     return email
@@ -69,7 +71,7 @@ async def test_get_email_returns_detail(email_id, mock_email):
     assert data["status"] == "draft"
 
 
-async def test_approve_email_dispatches_send_task(email_id, mock_email):
+async def test_approve_email_sets_status_approved(email_id, mock_email):
     from unittest.mock import AsyncMock
 
     mock_session = AsyncMock()
@@ -82,16 +84,13 @@ async def test_approve_email_dispatches_send_task(email_id, mock_email):
 
     app.dependency_overrides[get_db] = _override_db
     try:
-        with patch("app.api.emails.send_email_task") as mock_task:
-            async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
-            ) as client:
-                resp = await client.post(f"/api/emails/{email_id}/approve")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.post(f"/api/emails/{email_id}/approve")
     finally:
         app.dependency_overrides.pop(get_db, None)
 
     assert resp.status_code == 200
-    mock_task.delay.assert_called_once_with(str(email_id))
+    mock_session.commit.assert_called()
 
 
 async def test_reject_email_changes_status(email_id, mock_email):
@@ -100,6 +99,7 @@ async def test_reject_email_changes_status(email_id, mock_email):
     mock_session = AsyncMock()
     mock_execute = MagicMock()
     mock_execute.scalar_one_or_none.return_value = mock_email
+    mock_execute.scalar_one.return_value = 0  # complete_campaign_if_done count query
     mock_session.execute.return_value = mock_execute
 
     async def _override_db():

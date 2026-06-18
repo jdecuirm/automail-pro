@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
@@ -89,6 +89,28 @@ async def get_campaign(
     if campaign is None:
         raise HTTPException(status_code=404, detail="Campaign not found.")
     return campaign
+
+
+@router.delete("/{campaign_id}", status_code=204)
+async def delete_campaign(
+    campaign_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> None:
+    """Delete a campaign and all its leads, emails, and research (cascade)."""
+    user_id = uuid.UUID(settings.demo_user_id)
+    # Ownership check first — select is cheap and gives a clear 404.
+    exists = (
+        await session.execute(
+            select(Campaign.id).where(Campaign.id == campaign_id, Campaign.user_id == user_id)
+        )
+    ).scalar_one_or_none()
+    if exists is None:
+        raise HTTPException(status_code=404, detail="Campaign not found.")
+    # Raw DELETE lets the DB ON DELETE CASCADE handle child rows; avoids async
+    # lazy-load issues that session.delete(orm_obj) triggers on relationships.
+    await session.execute(delete(Campaign).where(Campaign.id == campaign_id))
+    await session.commit()
 
 
 @router.get("/{campaign_id}/leads", response_model=LeadPagination)

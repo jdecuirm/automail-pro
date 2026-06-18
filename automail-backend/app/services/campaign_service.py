@@ -197,7 +197,12 @@ async def list_emails(
         return None
 
     stmt = (
-        select(Email, Lead.name.label("lead_name"))
+        select(
+            Email,
+            Lead.name.label("lead_name"),
+            Lead.email.label("lead_email"),
+            Lead.company.label("lead_company"),
+        )
         .join(Lead, Email.lead_id == Lead.id)
         .where(Lead.campaign_id == campaign_id)
         .order_by(Email.created_at)
@@ -205,12 +210,14 @@ async def list_emails(
     rows = (await session.execute(stmt)).all()
 
     results: list[EmailResponse] = []
-    for email, lead_name in rows:
+    for email, lead_name, lead_email, lead_company in rows:
         data = EmailResponse.model_validate(
             {
                 "id": email.id,
                 "lead_id": email.lead_id,
                 "lead_name": lead_name,
+                "lead_email": lead_email,
+                "lead_company": lead_company,
                 "subject": email.subject,
                 "body_text": email.body_text,
                 "body_html": email.body_html,

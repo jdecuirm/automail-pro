@@ -12,9 +12,9 @@ from sqlalchemy.orm import selectinload
 from app.config import Settings, get_settings
 from app.database import get_db
 from app.models.email import Email, EmailStatus
-from app.models.lead import Lead
+from app.models.lead import Lead, LeadStatus
 from app.schemas.email import EmailResponse, EmailUpdateRequest
-from app.tasks.sending import send_email_task
+from app.services.campaign_advance import complete_campaign_if_done
 
 router = APIRouter(prefix="/api/emails", tags=["emails"])
 
@@ -46,6 +46,8 @@ def _to_response(email: Email) -> EmailResponse:
             "id": email.id,
             "lead_id": email.lead_id,
             "lead_name": email.lead.name,
+            "lead_email": email.lead.email,
+            "lead_company": email.lead.company,
             "subject": email.subject,
             "body_text": email.body_text,
             "body_html": email.body_html,
@@ -77,7 +79,7 @@ async def approve_email(
     session: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> EmailResponse:
-    """Approve a draft email and dispatch the send Celery task."""
+    """Mark a draft email as approved. Sending is triggered separately via bulk-send."""
     user_id = uuid.UUID(settings.demo_user_id)
     email = await _get_email_owned(email_id, session, user_id)
 
@@ -88,10 +90,9 @@ async def approve_email(
         )
 
     email.status = EmailStatus.approved
+    email.lead.status = LeadStatus.approved
     await session.commit()
     await session.refresh(email, attribute_names=["updated_at"])
-
-    send_email_task.delay(str(email_id))
 
     return _to_response(email)
 
@@ -113,6 +114,8 @@ async def reject_email(
         )
 
     email.status = EmailStatus.rejected
+    email.lead.status = LeadStatus.rejected
+    await complete_campaign_if_done(email.lead.campaign_id, session)
     await session.commit()
     await session.refresh(email, attribute_names=["updated_at"])
 

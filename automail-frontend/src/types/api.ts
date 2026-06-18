@@ -104,11 +104,13 @@ export interface LeadPagination {
   page_size: number;
 }
 
-// Emails (used in I.3+)
+// Emails
 export interface EmailResponse {
   id: string;
   lead_id: string;
   lead_name: string;
+  lead_email: string;
+  lead_company: string | null;
   subject: string;
   body_text: string;
   body_html: string;
@@ -125,6 +127,9 @@ export interface EmailUpdateRequest {
   body_html?: string;
   body_text?: string;
 }
+
+// GET /api/campaigns/{id}/emails returns list[], no pagination
+export type EmailList = EmailResponse[];
 
 export interface BulkSendResponse {
   dispatched: number;

@@ -14,6 +14,8 @@ class EmailResponse(BaseModel):
     id: uuid.UUID
     lead_id: uuid.UUID
     lead_name: str
+    lead_email: str
+    lead_company: str | None = None
     subject: str
     body_text: str
     body_html: str

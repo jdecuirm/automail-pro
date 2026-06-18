@@ -40,6 +40,7 @@ export function useTheme() {
 
   function setTheme(newTheme: Theme): void {
     localStorage.setItem(STORAGE_KEY, newTheme);
+    applyTheme(newTheme);
     setThemeState(newTheme);
   }
 

@@ -13,6 +13,7 @@ from app.models.lead import Lead, LeadStatus
 from app.models.lead_research import LeadResearch
 from app.schemas.scrape_result import ScrapeResult
 from app.services import rate_limiter, robots_checker, scrape_cache
+from app.services.campaign_advance import advance_campaign_if_done
 from app.services.dynamic_scraper import scrape_dynamic
 from app.services.scraper_exceptions import (
     RobotsDisallowedError,
@@ -140,6 +141,7 @@ async def scrape_lead(lead_id: uuid.UUID, session: AsyncSession) -> LeadResearch
     if website_result is None and linkedin_result is None:
         lead.status = LeadStatus.failed
         lead.error_message = failure_reason or "No content could be scraped"
+        await advance_campaign_if_done(lead, session)
         await session.commit()
         logger.warning("orchestrator: lead=%s → failed (%s)", lead_id, lead.error_message)
         return None

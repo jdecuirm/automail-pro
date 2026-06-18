@@ -41,6 +41,7 @@ def send_email_task(self: Any, email_id: str) -> dict[str, Any]:
     from app.models.email import Email, EmailStatus
     from app.models.lead import Lead, LeadStatus
     from app.services import daily_quota, gmail_sender
+    from app.services.campaign_advance import complete_campaign_if_done
     from app.utils.url_signer import sign_open_token
 
     email_uuid = uuid.UUID(email_id)
@@ -78,11 +79,13 @@ def send_email_task(self: Any, email_id: str) -> dict[str, Any]:
                 }
 
             user_id = email.lead.campaign.user_id
+            campaign_id = email.lead.campaign_id
 
             if not await daily_quota.can_send(user_id, session):
                 logger.warning("send_email_task: quota exceeded user=%s", user_id)
                 email.status = EmailStatus.failed
                 email.error_message = "daily_quota_exceeded"
+                await complete_campaign_if_done(campaign_id, session)
                 await session.commit()
                 return {
                     "email_id": email_id,
@@ -124,6 +127,7 @@ def send_email_task(self: Any, email_id: str) -> dict[str, Any]:
                 logger.error("send_email_task: credential revoked user=%s", user_id)
                 email.status = EmailStatus.failed
                 email.error_message = "credential_revoked"
+                await complete_campaign_if_done(campaign_id, session)
                 await session.commit()
                 return {
                     "email_id": email_id,
@@ -139,6 +143,7 @@ def send_email_task(self: Any, email_id: str) -> dict[str, Any]:
                 logger.exception("send_email_task: unexpected error email=%s", email_id)
                 email.status = EmailStatus.failed
                 email.error_message = str(exc)[:500]
+                await complete_campaign_if_done(campaign_id, session)
                 await session.commit()
                 raise
 
@@ -146,6 +151,7 @@ def send_email_task(self: Any, email_id: str) -> dict[str, Any]:
             email.sent_at = datetime.now(timezone.utc).replace(tzinfo=None)
             email.gmail_message_id = gmail_id
             email.lead.status = LeadStatus.sent
+            await complete_campaign_if_done(campaign_id, session)
             await session.commit()
 
             logger.info("send_email_task: sent email=%s gmail_id=%s", email_id, gmail_id)
