@@ -34,10 +34,12 @@ def send_email_task(self: Any, email_id: str) -> dict[str, Any]:
     """
     from sqlalchemy.orm import selectinload
 
+    from app.config import get_settings as _get_settings
     from app.database import get_task_session
     from app.models.email import Email, EmailStatus
     from app.models.lead import Lead, LeadStatus
     from app.services import daily_quota, gmail_sender
+    from app.utils.url_signer import sign_open_token
 
     email_uuid = uuid.UUID(email_id)
 
@@ -90,12 +92,28 @@ def send_email_task(self: Any, email_id: str) -> dict[str, Any]:
             email.status = EmailStatus.sending
             await session.commit()
 
+            # Inject tracking pixel into HTML
+            _settings = _get_settings()
+            _pixel_token = sign_open_token(
+                email.lead_id, email.id, _settings.tracking_secret_key.get_secret_value()
+            )
+            _pixel_url = f"{_settings.app_base_url}/api/track/open/{_pixel_token}"
+            _pixel_tag = (
+                f'<img src="{_pixel_url}" width="1" height="1" '
+                'style="display:none;border:0;outline:0;text-decoration:none" alt="">'
+            )
+            _html = email.body_html
+            if "</body>" in _html.lower():
+                _html = _html.replace("</body>", f"{_pixel_tag}</body>", 1)
+            else:
+                _html = _html + _pixel_tag
+
             try:
                 gmail_id = await gmail_sender.send_email(
                     user_id=user_id,
                     to=email.lead.email,
                     subject=email.subject,
-                    body_html=email.body_html,
+                    body_html=_html,
                     body_text=email.body_text,
                     session=session,
                 )
