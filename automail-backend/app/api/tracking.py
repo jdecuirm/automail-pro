@@ -112,6 +112,8 @@ async def track_open(
     lead, email = result
 
     # Dedup: skip if an open event already exists for this (email, lead) pair
+    # TODO(stage-k): add UNIQUE constraint on (email_id, lead_id, event_type) to handle
+    # race conditions at the DB level
     existing = (
         await session.execute(
             select(TrackingEvent).where(
@@ -141,7 +143,10 @@ async def track_open(
     if lead.status == LeadStatus.sent:
         lead.status = LeadStatus.opened
 
-    await session.commit()
-    logger.info("track_open: recorded open lead=%s email=%s", lead_id, email_id)
+    try:
+        await session.commit()
+        logger.info("track_open: recorded open lead=%s email=%s", lead_id, email_id)
+    except Exception:
+        logger.exception("track_open: db write failed lead=%s email=%s", lead_id, email_id)
 
     return _pixel_response()

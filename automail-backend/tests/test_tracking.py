@@ -215,3 +215,5 @@ async def test_lead_status_not_advanced_if_already_opened(
     assert resp.status_code == 200
     # Status must remain opened (not changed by the handler)
     assert mock_lead.status == LeadStatus.opened
+    # Event must still be recorded even when status is already opened
+    mock_session.add.assert_called_once()
