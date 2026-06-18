@@ -54,11 +54,11 @@ export default function Dashboard() {
         </CardContent>
         <CardFooter>
           {gmailStatus?.connected ? (
-            <Button asChild>
+            <Button asChild className="w-full sm:w-auto">
               <Link to="/campaigns">Create your first campaign</Link>
             </Button>
           ) : (
-            <Button asChild>
+            <Button asChild className="w-full sm:w-auto">
               <Link to="/settings/gmail">Connect your Gmail</Link>
             </Button>
           )}

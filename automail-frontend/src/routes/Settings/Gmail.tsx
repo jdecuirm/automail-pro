@@ -79,7 +79,7 @@ export default function SettingsGmail() {
       {gmailStatus?.connected ? (
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <Avatar className="h-12 w-12">
                 <AvatarFallback className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
                   {gmailStatus.email_address
@@ -88,7 +88,7 @@ export default function SettingsGmail() {
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <CardTitle className="text-base truncate">
                     {gmailStatus.email_address ?? "Gmail account"}
                   </CardTitle>
@@ -123,7 +123,7 @@ export default function SettingsGmail() {
                 <Button
                   variant="destructive"
                   size="sm"
-                  className="gap-2"
+                  className="gap-2 w-full sm:w-auto"
                   disabled={disconnectMutation.isPending}
                 >
                   <LogOut className="h-4 w-4" />
