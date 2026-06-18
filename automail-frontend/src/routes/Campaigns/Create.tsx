@@ -23,7 +23,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import CSVUploader from "@/components/campaigns/CSVUploader";
 import CSVPreviewTable from "@/components/campaigns/CSVPreviewTable";
@@ -32,7 +31,6 @@ import { createCampaign } from "@/api/campaigns";
 
 const schema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Max 100 characters"),
-  description: z.string().max(500, "Max 500 characters").optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -51,15 +49,13 @@ export default function CreateCampaign() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", description: "" },
+    defaultValues: { name: "" },
   });
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) => {
       const formData = new FormData();
       formData.append("name", values.name);
-      if (values.description)
-        formData.append("description", values.description);
       formData.append("csv_file", csvFile!);
       return createCampaign(formData);
     },
@@ -130,7 +126,7 @@ export default function CreateCampaign() {
         <CardHeader>
           <CardTitle className="text-base">Campaign details</CardTitle>
           <CardDescription>
-            Give your campaign a name and optionally a description.
+            Give your campaign a name and upload your lead list.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -146,27 +142,6 @@ export default function CreateCampaign() {
                     <FormControl>
                       <Input
                         placeholder="e.g. SaaS Founders Q3 Outreach"
-                        {...field}
-                        disabled={mutation.isPending}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Description */}
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Optional context about this campaign..."
-                        className="resize-none"
-                        rows={3}
                         {...field}
                         disabled={mutation.isPending}
                       />

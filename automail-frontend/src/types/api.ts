@@ -4,10 +4,14 @@
 
 export type CampaignStatus =
   | "draft"
+  | "uploaded"
   | "scraping"
   | "generating"
   | "review"
-  | "sending";
+  | "sending"
+  | "completed"
+  | "paused"
+  | "failed";
 
 export type LeadStatus =
   | "uploaded"
@@ -19,7 +23,8 @@ export type LeadStatus =
   | "rejected"
   | "sending"
   | "sent"
-  | "opened";
+  | "opened"
+  | "failed";
 
 export type EmailStatus =
   | "draft"
@@ -36,23 +41,31 @@ export interface GmailStatusResponse {
   needs_reconnect: boolean;
 }
 
-// Campaigns (used in I.2+, defined here for completeness)
+// Campaigns
+export interface CampaignStats {
+  uploaded: number;
+  scraping: number;
+  researched: number;
+  generating: number;
+  drafted: number;
+  approved: number;
+  sent: number;
+  opened: number;
+  failed: number;
+}
+
 export interface CampaignListItem {
   id: string;
   name: string;
   status: CampaignStatus;
   total_leads: number;
-  created_at: string;
-}
-
-export interface CampaignResponse {
-  id: string;
-  name: string;
-  status: CampaignStatus;
   csv_filename: string | null;
-  total_leads: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface CampaignResponse extends CampaignListItem {
+  stats: CampaignStats;
 }
 
 export interface CSVUploadResponse {
@@ -67,9 +80,10 @@ export interface CSVUploadResponse {
   }>;
 }
 
-// Leads (used in I.2+)
+// Leads
 export interface LeadResponse {
   id: string;
+  campaign_id: string;
   name: string;
   email: string;
   company: string | null;
