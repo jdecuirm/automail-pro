@@ -1,38 +1,24 @@
-import { useState, useEffect } from "react";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import Layout from "@/routes/Layout";
+import Dashboard from "@/routes/Dashboard";
+import SettingsGmail from "@/routes/Settings/Gmail";
+import SettingsAccount from "@/routes/Settings/Account";
+import NotFound from "@/routes/NotFound";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const router = createBrowserRouter([
+  {
+    path: "/",
+    element: <Layout />,
+    errorElement: <NotFound />,
+    children: [
+      { index: true, element: <Dashboard /> },
+      { path: "settings/gmail", element: <SettingsGmail /> },
+      { path: "settings/account", element: <SettingsAccount /> },
+      { path: "*", element: <NotFound /> },
+    ],
+  },
+]);
 
-interface HealthResponse {
-  status: string;
-  service: string;
+export default function App() {
+  return <RouterProvider router={router} />;
 }
-
-function App() {
-  const [backendStatus, setBackendStatus] = useState<string | null>(null);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    fetch(`${API_BASE}/health`)
-      .then((res) => res.json() as Promise<HealthResponse>)
-      .then((data) => setBackendStatus(data.status))
-      .catch(() => setError(true));
-  }, []);
-
-  return (
-    <main className="min-h-screen bg-gray-950 text-white flex flex-col items-center justify-center gap-4">
-      <h1 className="text-4xl font-bold tracking-tight">AutoMail Pro</h1>
-      <p className="text-lg text-gray-400">
-        Backend status:{" "}
-        {error ? (
-          <span className="text-red-400 font-medium">Backend unreachable</span>
-        ) : backendStatus === null ? (
-          <span className="text-yellow-400 font-medium">checking…</span>
-        ) : (
-          <span className="text-green-400 font-medium">{backendStatus}</span>
-        )}
-      </p>
-    </main>
-  );
-}
-
-export default App;
