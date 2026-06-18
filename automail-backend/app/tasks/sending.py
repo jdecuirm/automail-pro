@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -32,6 +33,7 @@ def send_email_task(self: Any, email_id: str) -> dict[str, Any]:
         dict with keys: email_id, status ("sent" | "failed" | "skipped"),
         gmail_message_id (str | None), reason (str | None).
     """
+
     from sqlalchemy.orm import selectinload
 
     from app.config import get_settings as _get_settings
@@ -102,10 +104,11 @@ def send_email_task(self: Any, email_id: str) -> dict[str, Any]:
                 f'<img src="{_pixel_url}" width="1" height="1" '
                 'style="display:none;border:0;outline:0;text-decoration:none" alt="">'
             )
-            _html = email.body_html
-            if "</body>" in _html.lower():
-                _html = _html.replace("</body>", f"{_pixel_tag}</body>", 1)
-            else:
+            _html = email.body_html or ""
+            _html, _n_replaced = re.subn(
+                r"</body>", f"{_pixel_tag}</body>", _html, count=1, flags=re.IGNORECASE
+            )
+            if _n_replaced == 0:
                 _html = _html + _pixel_tag
 
             try:
