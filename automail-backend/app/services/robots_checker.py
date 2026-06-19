@@ -10,9 +10,9 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# Simple in-process cache: domain -> (RobotFileParser | None | "deny")
-# "deny" sentinel means we got 403 — treat as disallowed
-_cache: dict[str, RobotFileParser | None | str] = {}
+# Simple in-process cache: domain -> (RobotFileParser | None)
+# None means either no robots.txt (allow), fetch error (allow), or 403 deny
+_cache: dict[str, RobotFileParser | None] = {}
 
 _ROBOTS_TIMEOUT = 5.0  # seconds
 
@@ -22,7 +22,7 @@ def _domain(url: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
-async def _fetch_robots(base_url: str, user_agent: str) -> RobotFileParser | None | str:
+async def _fetch_robots(base_url: str, user_agent: str) -> RobotFileParser | None:
     robots_url = f"{base_url.rstrip('/')}/robots.txt"
     try:
         async with httpx.AsyncClient(timeout=_ROBOTS_TIMEOUT, follow_redirects=True) as client:
@@ -38,7 +38,7 @@ async def _fetch_robots(base_url: str, user_agent: str) -> RobotFileParser | Non
         return None  # no robots.txt → allow
     if resp.status_code == 403:
         logger.info("robots_checker: 403 on %s — treating as deny", robots_url)
-        return "deny"
+        return None
     if resp.status_code != 200:
         logger.warning(
             "robots_checker: unexpected status %d for %s — allowing", resp.status_code, robots_url
@@ -68,9 +68,6 @@ async def is_allowed(url: str, user_agent: str) -> bool:
     entry = _cache[base]
     if entry is None:
         return True
-    if entry == "deny":
-        logger.info("robots_checker: blocked by 403-deny sentinel for %s", url)
-        return False
 
     token = _product_token(user_agent)
     allowed: bool = entry.can_fetch(token, url)

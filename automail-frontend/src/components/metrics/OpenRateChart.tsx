@@ -9,15 +9,13 @@ import {
 } from "recharts";
 import { Eye } from "lucide-react";
 import EmptyState from "@/components/common/EmptyState";
-import type { CampaignResponse } from "@/types/api";
-import { mergeStats } from "@/lib/format";
+import type { CampaignStats } from "@/types/api";
 
 interface OpenRateChartProps {
-  campaign: CampaignResponse;
+  stats: CampaignStats;
 }
 
-export default function OpenRateChart({ campaign }: OpenRateChartProps) {
-  const stats = mergeStats(campaign.stats);
+export default function OpenRateChart({ stats }: OpenRateChartProps) {
   const sent = stats.sent + stats.opened;
   const opened = stats.opened;
 

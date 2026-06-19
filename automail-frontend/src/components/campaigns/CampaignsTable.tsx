@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   useReactTable,
@@ -63,96 +63,99 @@ export default function CampaignsTable({ data }: { data: CampaignListItem[] }) {
     },
   });
 
-  const columns = [
-    columnHelper.accessor("name", {
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-3 h-8"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Name
-          <ArrowUpDown className="ml-1 h-3.5 w-3.5" />
-        </Button>
-      ),
-      cell: ({ row }) => (
-        <Link
-          to={`/campaigns/${row.original.id}`}
-          className="font-medium hover:underline underline-offset-4"
-        >
-          {row.original.name}
-        </Link>
-      ),
-    }),
-    columnHelper.accessor("status", {
-      header: "Status",
-      cell: ({ getValue }) => <CampaignStatusBadge status={getValue()} />,
-    }),
-    columnHelper.accessor("total_leads", {
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-3 h-8"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Leads
-          <ArrowUpDown className="ml-1 h-3.5 w-3.5" />
-        </Button>
-      ),
-      cell: ({ getValue }) => (
-        <span className="text-sm tabular-nums">{getValue()}</span>
-      ),
-    }),
-    columnHelper.accessor("created_at", {
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-3 h-8"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Created
-          <ArrowUpDown className="ml-1 h-3.5 w-3.5" />
-        </Button>
-      ),
-      cell: ({ getValue }) => (
-        <span className="text-sm text-muted-foreground">
-          {relativeTime(getValue())}
-        </span>
-      ),
-    }),
-    columnHelper.display({
-      id: "actions",
-      cell: ({ row }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4" />
-              <span className="sr-only">Actions</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={() => void navigate(`/campaigns/${row.original.id}`)}
-            >
-              <Eye className="mr-2 h-4 w-4" />
-              View
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onClick={() => setDeleteId(row.original.id)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
-    }),
-  ];
+  const columns = useMemo(
+    () => [
+      columnHelper.accessor("name", {
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-3 h-8"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Name
+            <ArrowUpDown className="ml-1 h-3.5 w-3.5" />
+          </Button>
+        ),
+        cell: ({ row }) => (
+          <Link
+            to={`/campaigns/${row.original.id}`}
+            className="font-medium hover:underline underline-offset-4"
+          >
+            {row.original.name}
+          </Link>
+        ),
+      }),
+      columnHelper.accessor("status", {
+        header: "Status",
+        cell: ({ getValue }) => <CampaignStatusBadge status={getValue()} />,
+      }),
+      columnHelper.accessor("total_leads", {
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-3 h-8"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Leads
+            <ArrowUpDown className="ml-1 h-3.5 w-3.5" />
+          </Button>
+        ),
+        cell: ({ getValue }) => (
+          <span className="text-sm tabular-nums">{getValue()}</span>
+        ),
+      }),
+      columnHelper.accessor("created_at", {
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="-ml-3 h-8"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Created
+            <ArrowUpDown className="ml-1 h-3.5 w-3.5" />
+          </Button>
+        ),
+        cell: ({ getValue }) => (
+          <span className="text-sm text-muted-foreground">
+            {relativeTime(getValue())}
+          </span>
+        ),
+      }),
+      columnHelper.display({
+        id: "actions",
+        cell: ({ row }) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">Actions</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => void navigate(`/campaigns/${row.original.id}`)}
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                View
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => setDeleteId(row.original.id)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+      }),
+    ],
+    [navigate, setDeleteId],
+  );
 
   const table = useReactTable({
     data,

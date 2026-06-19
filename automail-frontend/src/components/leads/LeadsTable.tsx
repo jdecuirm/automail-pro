@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -8,6 +8,13 @@ import {
 import { Search, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -85,55 +92,58 @@ export default function LeadsTable({
 
   const hasFilters = search !== "" || statusFilter !== "";
 
-  const columns = [
-    columnHelper.accessor("name", {
-      header: "Name",
-      cell: ({ getValue }) => (
-        <span className="font-medium text-sm">{getValue()}</span>
-      ),
-    }),
-    columnHelper.accessor("email", {
-      header: "Email",
-      cell: ({ getValue }) => (
-        <span className="text-sm text-muted-foreground truncate max-w-[180px] block">
-          {getValue()}
-        </span>
-      ),
-    }),
-    columnHelper.accessor("company", {
-      header: "Company",
-      cell: ({ getValue }) => (
-        <span className="text-sm">
-          {getValue() ?? <span className="text-muted-foreground">—</span>}
-        </span>
-      ),
-    }),
-    columnHelper.accessor("status", {
-      header: "Status",
-      cell: ({ getValue }) => <LeadStatusBadge status={getValue()} />,
-    }),
-    columnHelper.accessor("updated_at", {
-      header: "Updated",
-      cell: ({ getValue }) => (
-        <span className="text-xs text-muted-foreground">
-          {relativeTime(getValue())}
-        </span>
-      ),
-    }),
-    columnHelper.display({
-      id: "actions",
-      cell: ({ row }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 text-xs"
-          onClick={() => setSelectedLead(row.original)}
-        >
-          View
-        </Button>
-      ),
-    }),
-  ];
+  const columns = useMemo(
+    () => [
+      columnHelper.accessor("name", {
+        header: "Name",
+        cell: ({ getValue }) => (
+          <span className="font-medium text-sm">{getValue()}</span>
+        ),
+      }),
+      columnHelper.accessor("email", {
+        header: "Email",
+        cell: ({ getValue }) => (
+          <span className="text-sm text-muted-foreground truncate max-w-[180px] block">
+            {getValue()}
+          </span>
+        ),
+      }),
+      columnHelper.accessor("company", {
+        header: "Company",
+        cell: ({ getValue }) => (
+          <span className="text-sm">
+            {getValue() ?? <span className="text-muted-foreground">—</span>}
+          </span>
+        ),
+      }),
+      columnHelper.accessor("status", {
+        header: "Status",
+        cell: ({ getValue }) => <LeadStatusBadge status={getValue()} />,
+      }),
+      columnHelper.accessor("updated_at", {
+        header: "Updated",
+        cell: ({ getValue }) => (
+          <span className="text-xs text-muted-foreground">
+            {relativeTime(getValue())}
+          </span>
+        ),
+      }),
+      columnHelper.display({
+        id: "actions",
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setSelectedLead(row.original)}
+          >
+            View
+          </Button>
+        ),
+      }),
+    ],
+    [setSelectedLead],
+  );
 
   const table = useReactTable({
     data: data?.items ?? [],
@@ -166,20 +176,24 @@ export default function LeadsTable({
             <Search className="h-3.5 w-3.5" />
           </Button>
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) =>
-            handleStatusChange(e.target.value as LeadStatus | "")
+        <Select
+          value={statusFilter === "" ? "all" : statusFilter}
+          onValueChange={(v) =>
+            handleStatusChange(v === "all" ? "" : (v as LeadStatus))
           }
-          className="h-8 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         >
-          <option value="">All statuses</option>
-          {ALL_LEAD_STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s.charAt(0).toUpperCase() + s.slice(1)}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="h-8 w-[180px] text-sm">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {ALL_LEAD_STATUSES.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {hasFilters && (
           <Button
             variant="ghost"

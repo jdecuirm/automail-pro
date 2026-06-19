@@ -15,6 +15,15 @@ logger = logging.getLogger(__name__)
 
 _KEY_PREFIX = "scrape:result:"
 
+_redis: aioredis.Redis | None = None
+
+
+def _get_redis() -> aioredis.Redis:
+    global _redis
+    if _redis is None:
+        _redis = aioredis.from_url(get_settings().redis_url, decode_responses=True)
+    return _redis
+
 
 def _url_key(url: str) -> str:
     digest = hashlib.sha256(url.encode()).hexdigest()
@@ -22,8 +31,7 @@ def _url_key(url: str) -> str:
 
 
 async def get_cached(url: str) -> ScrapeResult | None:
-    settings = get_settings()
-    client: aioredis.Redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+    client = _get_redis()
     try:
         raw = await client.get(_url_key(url))
         if raw is None:
@@ -33,27 +41,19 @@ async def get_cached(url: str) -> ScrapeResult | None:
     except Exception as exc:
         logger.warning("scrape_cache: get error for %s: %s", url, exc)
         return None
-    finally:
-        await client.aclose()
 
 
 async def set_cached(url: str, result: ScrapeResult) -> None:
     settings = get_settings()
     ttl_seconds = settings.scrape_cache_ttl_days * 86400
-    client: aioredis.Redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+    client = _get_redis()
     try:
         await client.set(_url_key(url), result.model_dump_json(), ex=ttl_seconds)
         logger.debug("scrape_cache: stored %s (ttl=%ds)", url, ttl_seconds)
     except Exception as exc:
         logger.warning("scrape_cache: set error for %s: %s", url, exc)
-    finally:
-        await client.aclose()
 
 
 async def invalidate(url: str) -> None:
-    settings = get_settings()
-    client: aioredis.Redis = aioredis.from_url(settings.redis_url, decode_responses=True)
-    try:
-        await client.delete(_url_key(url))
-    finally:
-        await client.aclose()
+    client = _get_redis()
+    await client.delete(_url_key(url))

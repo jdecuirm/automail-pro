@@ -10,7 +10,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useBulkSend } from "@/hooks/useEmailMutations";
-import type { EmailResponse } from "@/types/api";
 
 const MAX_DAILY = 50;
 
@@ -18,7 +17,7 @@ interface BulkSendDialogProps {
   open: boolean;
   onClose: () => void;
   campaignId: string;
-  emails: EmailResponse[];
+  approvedCount: number;
   profileComplete: boolean;
 }
 
@@ -26,11 +25,10 @@ export default function BulkSendDialog({
   open,
   onClose,
   campaignId,
-  emails,
+  approvedCount,
   profileComplete,
 }: BulkSendDialogProps) {
   const bulkSend = useBulkSend(campaignId);
-  const approvedCount = emails.filter((e) => e.status === "approved").length;
   const willExceed = approvedCount > MAX_DAILY;
 
   function handleSend() {

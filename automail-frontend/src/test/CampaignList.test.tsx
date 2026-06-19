@@ -1,4 +1,5 @@
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { http, HttpResponse } from "msw";
@@ -74,10 +75,12 @@ describe("CampaignList", () => {
   });
 
   it("filters campaigns by status", async () => {
+    const user = userEvent.setup();
     renderList();
     await waitFor(() => screen.getByText("Alpha Campaign"));
-    const select = screen.getByRole("combobox");
-    fireEvent.change(select, { target: { value: "scraping" } });
+    // Open the shadcn Select dropdown and pick "Scraping"
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByRole("option", { name: "Scraping" }));
     expect(screen.queryByText("Alpha Campaign")).not.toBeInTheDocument();
     expect(screen.getByText("Beta Campaign")).toBeInTheDocument();
   });

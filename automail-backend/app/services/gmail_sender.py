@@ -9,6 +9,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import Any
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -43,7 +44,7 @@ class EmailValidationError(GmailSenderError):
     """Gmail API rejected the message as malformed."""
 
 
-def _build_gmail_service(access_token: str) -> object:
+def _build_gmail_service(access_token: str) -> Any:
     """Build a Gmail API service object using an access token.
 
     Args:
@@ -89,7 +90,7 @@ def _build_raw_message(
     return base64.urlsafe_b64encode(msg.as_bytes()).decode()
 
 
-def _call_gmail_send(service: object, raw: str) -> str:
+def _call_gmail_send(service: Any, raw: str) -> str:
     """Synchronous Gmail API call. Returns gmail_message_id.
 
     Args:
@@ -172,6 +173,8 @@ async def send_email(
             credential.encrypted_refresh_token = encrypt_str(new_tokens["new_refresh_token"])
         await session.commit()
 
+    if credential.encrypted_access_token is None:
+        raise ValueError("Access token unavailable — user must reconnect Gmail")
     access_token = decrypt_str(credential.encrypted_access_token)
     sender_email = credential.get_email_address()
 

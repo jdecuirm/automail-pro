@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, field_validator
 
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 _MAX_TEXT = 5000
@@ -32,10 +32,6 @@ class ScrapeResult(BaseModel):
     @classmethod
     def lowercase_emails(cls, v: list[str]) -> list[str]:
         return [e.lower() for e in v]
-
-    @model_validator(mode="after")
-    def ensure_absolute_url(self) -> ScrapeResult:
-        return self
 
     def to_extracted_data(self) -> dict[str, Any]:
         """Serialise to JSONB-friendly dict for LeadResearch.extracted_data."""

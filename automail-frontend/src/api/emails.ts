@@ -11,10 +11,6 @@ export async function listCampaignEmails(
   return apiGet<EmailResponse[]>(`/api/campaigns/${campaignId}/emails`);
 }
 
-export async function getEmail(id: string): Promise<EmailResponse> {
-  return apiGet<EmailResponse>(`/api/emails/${id}`);
-}
-
 export async function approveEmail(id: string): Promise<EmailResponse> {
   return apiPost<EmailResponse>(`/api/emails/${id}/approve`);
 }

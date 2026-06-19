@@ -2,13 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listLeads } from "@/api/leads";
 import type { LeadPagination, CampaignStatus } from "@/types/api";
 import type { ListLeadsParams } from "@/api/leads";
-
-const ACTIVE_STATUSES: CampaignStatus[] = [
-  "uploaded",
-  "scraping",
-  "generating",
-  "sending",
-];
+import { ACTIVE_CAMPAIGN_STATUSES } from "@/lib/constants";
 
 export function useCampaignLeads(
   campaignId: string,
@@ -20,7 +14,7 @@ export function useCampaignLeads(
     queryFn: () => listLeads(campaignId, params),
     placeholderData: (prev) => prev,
     refetchInterval() {
-      if (campaignStatus && ACTIVE_STATUSES.includes(campaignStatus))
+      if (campaignStatus && ACTIVE_CAMPAIGN_STATUSES.has(campaignStatus))
         return 5_000;
       return false;
     },

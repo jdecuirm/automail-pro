@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import Any
 from urllib.parse import urlparse
 
 from sqlalchemy import select
@@ -150,7 +151,7 @@ async def scrape_lead(lead_id: uuid.UUID, session: AsyncSession) -> LeadResearch
     if primary is None:
         raise ScraperError("Invariant violated: primary result is None after content check")
 
-    extracted: dict = primary.to_extracted_data()
+    extracted: dict[str, Any] = primary.to_extracted_data()
     if linkedin_result and website_result:
         extracted["linkedin"] = linkedin_result.to_extracted_data()
 

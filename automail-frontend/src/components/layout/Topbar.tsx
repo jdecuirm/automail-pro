@@ -17,8 +17,15 @@ export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const navigate = useNavigate();
   const { data: gmailStatus, isPending } = useGmailStatus();
 
-  const breadcrumb =
-    BREADCRUMBS[pathname] ?? pathname.replace(/\//g, " / ").trim();
+  function deriveBreadcrumb(path: string): string {
+    if (BREADCRUMBS[path]) return BREADCRUMBS[path];
+    if (path.startsWith("/campaigns/") && path !== "/campaigns/new") {
+      return "Campaigns / Detail";
+    }
+    return path.replace(/\//g, " / ").trim();
+  }
+
+  const breadcrumb = deriveBreadcrumb(pathname);
 
   function handleGmailBadgeClick() {
     void navigate("/settings/gmail");

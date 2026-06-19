@@ -1,10 +1,10 @@
 import { Mail, Send, Eye, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import type { CampaignResponse } from "@/types/api";
-import { mergeStats } from "@/lib/format";
+import type { CampaignStats } from "@/types/api";
 
 interface StatsCardsProps {
-  campaign: CampaignResponse;
+  stats: CampaignStats;
+  totalLeads: number;
 }
 
 interface StatCardProps {
@@ -31,8 +31,7 @@ function StatCard({ icon: Icon, label, value }: StatCardProps) {
   );
 }
 
-export default function StatsCards({ campaign }: StatsCardsProps) {
-  const stats = mergeStats(campaign.stats);
+export default function StatsCards({ stats, totalLeads }: StatsCardsProps) {
   const generated =
     stats.drafted + stats.approved + stats.sent + stats.opened + stats.sending;
   const sent = stats.sent + stats.opened;
@@ -41,7 +40,7 @@ export default function StatsCards({ campaign }: StatsCardsProps) {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <StatCard icon={Users} label="Total Leads" value={campaign.total_leads} />
+      <StatCard icon={Users} label="Total Leads" value={totalLeads} />
       <StatCard icon={Mail} label="Emails Generated" value={generated} />
       <StatCard icon={Send} label="Emails Sent" value={sent} />
       <StatCard icon={Eye} label="Open Rate" value={openRate} />

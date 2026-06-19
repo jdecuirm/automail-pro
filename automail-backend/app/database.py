@@ -3,6 +3,7 @@ from collections.abc import AsyncGenerator, AsyncIterator
 
 from sqlalchemy import MetaData
 from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
@@ -25,7 +26,7 @@ class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 
-def _build_engine():
+def _build_engine() -> AsyncEngine:
     settings = get_settings()
     # NullPool required: Celery workers call asyncio.run() which creates a new event loop
     # per task. asyncpg connections are loop-bound, so a persistent pool would fail with

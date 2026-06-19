@@ -4,6 +4,11 @@ import { vi } from "vitest";
 // jsdom does not implement scrollIntoView — cmdk calls it on selected items
 Element.prototype.scrollIntoView = vi.fn();
 
+// jsdom does not implement pointer capture APIs — Radix UI Select uses them
+Element.prototype.hasPointerCapture = vi.fn(() => false);
+Element.prototype.setPointerCapture = vi.fn();
+Element.prototype.releasePointerCapture = vi.fn();
+
 // jsdom does not implement ResizeObserver — cmdk uses it internally
 global.ResizeObserver = class ResizeObserver {
   observe() {}

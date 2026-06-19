@@ -4,6 +4,13 @@ import { Plus, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import CampaignsTable from "@/components/campaigns/CampaignsTable";
 import EmptyState from "@/components/common/EmptyState";
 import { useCampaigns } from "@/hooks/useCampaigns";
@@ -63,20 +70,24 @@ export default function CampaignList() {
             onChange={(e) => setSearch(e.target.value)}
             className="max-w-xs h-8 text-sm"
           />
-          <select
-            value={statusFilter}
-            onChange={(e) =>
-              setStatusFilter(e.target.value as CampaignStatus | "")
+          <Select
+            value={statusFilter === "" ? "all" : statusFilter}
+            onValueChange={(v) =>
+              setStatusFilter(v === "all" ? "" : (v as CampaignStatus))
             }
-            className="h-8 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            <option value="">All statuses</option>
-            {ALL_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="h-8 w-[160px] text-sm">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {ALL_STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {hasFilters && (
             <Button
               variant="ghost"

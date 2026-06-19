@@ -7,11 +7,14 @@ import hashlib
 import hmac
 import secrets
 import time
+import uuid
 from typing import Any
 
+import redis.asyncio as aioredis
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.services.encryption import decrypt_str
@@ -22,9 +25,17 @@ SCOPES = [
     "openid",
 ]
 
-# PKCE code verifiers keyed by signed state. Single-process dev store — sufficient
-# for a single-user portfolio app running one uvicorn worker.
-_pkce_store: dict[str, str] = {}
+_PKCE_KEY_PREFIX = "pkce:verifier:"
+_PKCE_TTL_SECONDS = 600  # 10 minutes, same as max_age in verify_state
+
+_pkce_redis: aioredis.Redis | None = None
+
+
+def _get_pkce_redis() -> aioredis.Redis:
+    global _pkce_redis
+    if _pkce_redis is None:
+        _pkce_redis = aioredis.from_url(get_settings().redis_url, decode_responses=True)
+    return _pkce_redis
 
 
 def _create_flow() -> Flow:
@@ -47,15 +58,15 @@ def _create_flow() -> Flow:
     return flow
 
 
-def _get_email_from_token(id_token_str: str | None, access_token: str) -> str:
+async def _get_email_from_token(id_token_str: str | None, access_token: str) -> str:
     """Fetch user email from Google userinfo endpoint using the access token."""
     import httpx
 
-    resp = httpx.get(
-        "https://www.googleapis.com/oauth2/v2/userinfo",
-        headers={"Authorization": f"Bearer {access_token}"},
-        timeout=10,
-    )
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
     resp.raise_for_status()
     return resp.json()["email"]
 
@@ -107,12 +118,12 @@ def verify_state(state: str, secret: str, max_age: int = 600) -> str:
         raise ValueError(f"invalid state: {exc}") from exc
 
 
-def build_auth_url(state: str) -> str:
+async def build_auth_url(state: str) -> str:
     """Build the Google OAuth consent URL with PKCE and the signed state parameter.
 
-    Generates a PKCE code_verifier, stores it keyed by ``state``, and embeds the
-    corresponding code_challenge in the authorization URL. The verifier is consumed
-    by ``exchange_code_for_tokens`` during the callback.
+    Generates a PKCE code_verifier, stores it in Redis with a 10-minute TTL, and
+    embeds the corresponding code_challenge in the authorization URL. The verifier
+    is consumed by ``exchange_code_for_tokens`` during the callback.
 
     Args:
         state: Signed state token to embed in the URL for CSRF protection.
@@ -129,7 +140,10 @@ def build_auth_url(state: str) -> str:
         .rstrip(b"=")
         .decode()
     )
-    _pkce_store[state] = code_verifier
+
+    # Store verifier in Redis with TTL so orphaned OAuth flows are auto-cleaned
+    redis_client = _get_pkce_redis()
+    await redis_client.set(f"{_PKCE_KEY_PREFIX}{state}", code_verifier, ex=_PKCE_TTL_SECONDS)
 
     auth_url, _ = flow.authorization_url(
         access_type="offline",
@@ -141,11 +155,13 @@ def build_auth_url(state: str) -> str:
     return auth_url
 
 
-def exchange_code_for_tokens(code: str, state: str | None = None) -> dict[str, Any]:
+async def exchange_code_for_tokens(code: str, state: str | None = None) -> dict[str, Any]:
     """Exchange an authorization code for access + refresh tokens and user email.
 
-    Retrieves the PKCE code_verifier stored during ``build_auth_url`` and passes it
-    to the token endpoint. The verifier entry is consumed (deleted) on first use.
+    Retrieves the PKCE code_verifier stored in Redis during ``build_auth_url`` and
+    passes it to the token endpoint. The verifier entry is consumed (deleted) on
+    first use. The blocking ``flow.fetch_token`` call is offloaded to a thread via
+    ``asyncio.to_thread`` to avoid blocking the event loop.
 
     Args:
         code: The authorization code returned by Google after user consent.
@@ -155,13 +171,20 @@ def exchange_code_for_tokens(code: str, state: str | None = None) -> dict[str, A
     Returns:
         Dict with keys: access_token, refresh_token, expiry (datetime | None), email.
     """
+    import asyncio
+
     flow = _create_flow()
 
-    code_verifier = _pkce_store.pop(state, None) if state else None
-    flow.fetch_token(code=code, code_verifier=code_verifier)
+    if state:
+        redis_client = _get_pkce_redis()
+        code_verifier = await redis_client.getdel(f"{_PKCE_KEY_PREFIX}{state}")
+    else:
+        code_verifier = None
+
+    await asyncio.to_thread(flow.fetch_token, code=code, code_verifier=code_verifier)
     creds = flow.credentials
 
-    email = _get_email_from_token(creds.id_token, creds.token)
+    email = await _get_email_from_token(creds.id_token, creds.token)
 
     return {
         "access_token": creds.token,
@@ -208,3 +231,45 @@ def refresh_access_token(
         result["new_refresh_token"] = creds.refresh_token
 
     return result
+
+
+async def store_gmail_credential(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    tokens: dict[str, Any],
+) -> None:
+    """Persist or update the Gmail credential for a user after OAuth callback.
+
+    Upserts encrypted tokens and clears the needs_reconnect flag.
+    """
+    from sqlalchemy import select
+
+    from app.models.gmail_credential import GmailCredential
+    from app.services.encryption import encrypt_str
+
+    encrypted_refresh = encrypt_str(tokens["refresh_token"])
+    encrypted_access = encrypt_str(tokens["access_token"])
+    encrypted_email = encrypt_str(tokens["email"])
+
+    existing = (
+        await session.execute(select(GmailCredential).where(GmailCredential.user_id == user_id))
+    ).scalar_one_or_none()
+
+    if existing:
+        existing.encrypted_refresh_token = encrypted_refresh
+        existing.encrypted_access_token = encrypted_access
+        existing.token_expiry = tokens["expiry"]
+        existing.email_address = encrypted_email
+        existing.needs_reconnect = False
+    else:
+        session.add(
+            GmailCredential(
+                user_id=user_id,
+                encrypted_refresh_token=encrypted_refresh,
+                encrypted_access_token=encrypted_access,
+                token_expiry=tokens["expiry"],
+                email_address=encrypted_email,
+                needs_reconnect=False,
+            )
+        )
+    await session.commit()

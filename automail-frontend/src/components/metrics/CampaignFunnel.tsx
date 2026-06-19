@@ -1,5 +1,4 @@
-import type { CampaignResponse } from "@/types/api";
-import { mergeStats } from "@/lib/format";
+import type { CampaignStats } from "@/types/api";
 
 interface FunnelStep {
   label: string;
@@ -8,12 +7,15 @@ interface FunnelStep {
 }
 
 interface CampaignFunnelProps {
-  campaign: CampaignResponse;
+  stats: CampaignStats;
+  totalLeads: number;
 }
 
-export default function CampaignFunnel({ campaign }: CampaignFunnelProps) {
-  const stats = mergeStats(campaign.stats);
-  const total = campaign.total_leads;
+export default function CampaignFunnel({
+  stats,
+  totalLeads,
+}: CampaignFunnelProps) {
+  const total = totalLeads;
 
   const steps: FunnelStep[] = [
     {

@@ -11,12 +11,12 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user_id
 from app.config import Settings, get_settings
 from app.database import get_db
 from app.limiter import limit_oauth_authorize, limiter
 from app.models.gmail_credential import GmailCredential
 from app.services import google_oauth
-from app.services.encryption import encrypt_str
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +34,11 @@ class OAuthStatusResponse(BaseModel):
 async def authorize(
     request: Request,
     settings: Settings = Depends(get_settings),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> RedirectResponse:
     """Redirect the user to Google's OAuth consent screen."""
-    user_id = str(uuid.UUID(settings.demo_user_id))
-    state = google_oauth.sign_state(user_id, settings.app_secret_key.get_secret_value())
-    auth_url = google_oauth.build_auth_url(state)
+    state = google_oauth.sign_state(str(user_id), settings.app_secret_key.get_secret_value())
+    auth_url = await google_oauth.build_auth_url(state)
     return RedirectResponse(url=auth_url)
 
 
@@ -49,6 +49,7 @@ async def callback(
     error: str | None = None,
     session: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> RedirectResponse:
     """Handle Google's OAuth callback: verify state, exchange code, store tokens."""
     frontend_url = settings.frontend_base_url
@@ -65,40 +66,12 @@ async def callback(
         return RedirectResponse(url=f"{frontend_url}?oauth_error=invalid_state")
 
     try:
-        tokens = google_oauth.exchange_code_for_tokens(code, state=state)
+        tokens = await google_oauth.exchange_code_for_tokens(code, state=state)
     except Exception as exc:
         logger.error("oauth_callback: token exchange failed — %s", exc)
         return RedirectResponse(url=f"{frontend_url}?oauth_error=token_exchange_failed")
 
-    user_id = uuid.UUID(settings.demo_user_id)
-    encrypted_refresh = encrypt_str(tokens["refresh_token"])
-    encrypted_access = encrypt_str(tokens["access_token"])
-    encrypted_email = encrypt_str(tokens["email"])
-
-    # Upsert: one credential row per user
-    existing = (
-        await session.execute(select(GmailCredential).where(GmailCredential.user_id == user_id))
-    ).scalar_one_or_none()
-
-    if existing:
-        existing.encrypted_refresh_token = encrypted_refresh
-        existing.encrypted_access_token = encrypted_access
-        existing.token_expiry = tokens["expiry"]
-        existing.email_address = encrypted_email
-        existing.needs_reconnect = False
-    else:
-        session.add(
-            GmailCredential(
-                user_id=user_id,
-                encrypted_refresh_token=encrypted_refresh,
-                encrypted_access_token=encrypted_access,
-                token_expiry=tokens["expiry"],
-                email_address=encrypted_email,
-                needs_reconnect=False,
-            )
-        )
-
-    await session.commit()
+    await google_oauth.store_gmail_credential(session, user_id, tokens)
     logger.info("oauth_callback: gmail connected for user=%s", user_id)
     return RedirectResponse(url=f"{frontend_url}?oauth_success=true")
 
@@ -106,10 +79,9 @@ async def callback(
 @router.get("/status", response_model=OAuthStatusResponse)
 async def status(
     session: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> OAuthStatusResponse:
     """Return the OAuth connection status for the demo user."""
-    user_id = uuid.UUID(settings.demo_user_id)
     credential = (
         await session.execute(select(GmailCredential).where(GmailCredential.user_id == user_id))
     ).scalar_one_or_none()
@@ -132,10 +104,9 @@ async def status(
 @router.delete("/disconnect", status_code=204)
 async def disconnect(
     session: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> None:
     """Delete the stored Gmail credential for the demo user."""
-    user_id = uuid.UUID(settings.demo_user_id)
     credential = (
         await session.execute(select(GmailCredential).where(GmailCredential.user_id == user_id))
     ).scalar_one_or_none()

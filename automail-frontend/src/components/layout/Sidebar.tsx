@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import ThemeToggle from "./ThemeToggle";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -51,6 +52,17 @@ export default function Sidebar({
   onNavClick?: () => void;
   onClose?: () => void;
 }) {
+  const { data: profile } = useUserProfile();
+  const initials = profile?.sender_name
+    ? profile.sender_name
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "?";
+  const displayName = profile?.sender_name ?? "User";
+
   return (
     <aside className="flex h-full w-60 flex-col border-r bg-sidebar">
       {/* Logo */}
@@ -85,10 +97,10 @@ export default function Sidebar({
       <div className="flex items-center justify-between border-t px-3 py-3">
         <div className="flex items-center gap-2 min-w-0">
           <Avatar className="h-7 w-7 shrink-0">
-            <AvatarFallback className="text-xs">JD</AvatarFallback>
+            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
           <span className="truncate text-xs text-muted-foreground">
-            Demo User
+            {displayName}
           </span>
         </div>
         <ThemeToggle />

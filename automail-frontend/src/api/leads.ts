@@ -1,4 +1,4 @@
-import type { LeadPagination, LeadResponse } from "@/types/api";
+import type { LeadPagination } from "@/types/api";
 import { apiGet } from "./client";
 
 export interface ListLeadsParams {
@@ -23,8 +23,4 @@ export async function listLeads(
   return apiGet<LeadPagination>(
     `/api/campaigns/${campaignId}/leads${qs ? `?${qs}` : ""}`,
   );
-}
-
-export async function getLead(id: string): Promise<LeadResponse> {
-  return apiGet<LeadResponse>(`/api/leads/${id}`);
 }

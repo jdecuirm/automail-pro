@@ -11,23 +11,19 @@ import type { EmailUpdateRequest } from "@/types/api";
 function invalidateEmailQueries(
   queryClient: ReturnType<typeof useQueryClient>,
   campaignId: string,
-  emailId?: string,
 ) {
   void queryClient.invalidateQueries({
     queryKey: ["campaign-emails", campaignId],
   });
   void queryClient.invalidateQueries({ queryKey: ["campaign", campaignId] });
-  if (emailId) {
-    void queryClient.invalidateQueries({ queryKey: ["email", emailId] });
-  }
 }
 
 export function useApproveEmail(campaignId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (emailId: string) => approveEmail(emailId),
-    onSuccess(_, emailId) {
-      invalidateEmailQueries(queryClient, campaignId, emailId);
+    onSuccess() {
+      invalidateEmailQueries(queryClient, campaignId);
       toast.success("Email approved and queued for sending.");
     },
     onError() {
@@ -40,8 +36,8 @@ export function useRejectEmail(campaignId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (emailId: string) => rejectEmail(emailId),
-    onSuccess(_, emailId) {
-      invalidateEmailQueries(queryClient, campaignId, emailId);
+    onSuccess() {
+      invalidateEmailQueries(queryClient, campaignId);
       toast.success("Email rejected.");
     },
     onError() {
@@ -55,8 +51,8 @@ export function useUpdateEmail(campaignId: string) {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: EmailUpdateRequest }) =>
       updateEmail(id, data),
-    onSuccess(_, { id }) {
-      invalidateEmailQueries(queryClient, campaignId, id);
+    onSuccess() {
+      invalidateEmailQueries(queryClient, campaignId);
       toast.success("Email updated.");
     },
     onError() {

@@ -14,6 +14,15 @@ logger = logging.getLogger(__name__)
 
 _KEY_PREFIX = "scrape:lastreq:"
 
+_redis: aioredis.Redis | None = None
+
+
+def _get_redis() -> aioredis.Redis:
+    global _redis
+    if _redis is None:
+        _redis = aioredis.from_url(get_settings().redis_url, decode_responses=False)
+    return _redis
+
 
 def _domain_key(url: str) -> str:
     parsed = urlparse(url)
@@ -37,19 +46,16 @@ async def wait_for_slot(url: str, min_interval_seconds: int | None = None) -> No
     key = _domain_key(url)
     interval_ms = interval * 1000
 
-    client: aioredis.Redis = aioredis.from_url(settings.redis_url, decode_responses=False)
-    try:
-        while True:
-            # Atomically claim the slot: succeeds only if no request was made
-            # within the last interval. The key expires after 2× interval as a safety net.
-            acquired = await client.set(key, "1", nx=True, px=interval_ms * 2)
-            if acquired:
-                break
+    client = _get_redis()
+    while True:
+        # Atomically claim the slot: succeeds only if no request was made
+        # within the last interval. The key expires after 2× interval as a safety net.
+        acquired = await client.set(key, "1", nx=True, px=interval_ms * 2)
+        if acquired:
+            break
 
-            # Slot taken — wait out the remaining TTL then retry
-            ttl_ms = await client.pttl(key)
-            wait_s = max(ttl_ms, 50) / 1000  # floor at 50 ms to avoid tight spin
-            logger.debug("rate_limiter: domain=%s waiting %.2fs for slot", key, wait_s)
-            await asyncio.sleep(wait_s)
-    finally:
-        await client.aclose()
+        # Slot taken — wait out the remaining TTL then retry
+        ttl_ms = await client.pttl(key)
+        wait_s = max(ttl_ms, 50) / 1000  # floor at 50 ms to avoid tight spin
+        logger.debug("rate_limiter: domain=%s waiting %.2fs for slot", key, wait_s)
+        await asyncio.sleep(wait_s)

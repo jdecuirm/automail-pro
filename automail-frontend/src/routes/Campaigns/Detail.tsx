@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -33,7 +33,7 @@ import { useCampaign } from "@/hooks/useCampaign";
 import { useCampaignEmails } from "@/hooks/useCampaignEmails";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { deleteCampaign } from "@/api/campaigns";
-import { fullDateTime } from "@/lib/format";
+import { fullDateTime, mergeStats } from "@/lib/format";
 
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
@@ -65,6 +65,14 @@ export default function CampaignDetail() {
   });
 
   const approvedCount = emails.filter((e) => e.status === "approved").length;
+
+  // Compute mergeStats once so StatsCards, CampaignFunnel and OpenRateChart
+  // don't each call it independently.
+  const campaignStats = useMemo(
+    () => (campaign ? mergeStats(campaign.stats) : mergeStats(null)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [campaign?.stats],
+  );
 
   const deleteMutation = useMutation({
     mutationFn: () => deleteCampaign(id ?? ""),
@@ -292,14 +300,14 @@ export default function CampaignDetail() {
             open={bulkSendOpen}
             onClose={() => setBulkSendOpen(false)}
             campaignId={campaign.id}
-            emails={emails}
+            approvedCount={approvedCount}
             profileComplete={profile?.profile_complete ?? false}
           />
         </TabsContent>
 
         {/* Metrics tab */}
         <TabsContent value="metrics" className="space-y-6 pt-4">
-          <StatsCards campaign={campaign} />
+          <StatsCards stats={campaignStats} totalLeads={campaign.total_leads} />
 
           <Card>
             <CardHeader>
@@ -308,7 +316,10 @@ export default function CampaignDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <CampaignFunnel campaign={campaign} />
+              <CampaignFunnel
+                stats={campaignStats}
+                totalLeads={campaign.total_leads}
+              />
             </CardContent>
           </Card>
 
@@ -317,7 +328,7 @@ export default function CampaignDetail() {
               <CardTitle className="text-sm font-medium">Open Rate</CardTitle>
             </CardHeader>
             <CardContent>
-              <OpenRateChart campaign={campaign} />
+              <OpenRateChart stats={campaignStats} />
             </CardContent>
           </Card>
         </TabsContent>

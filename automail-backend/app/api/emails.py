@@ -9,12 +9,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.config import Settings, get_settings
+from app.api.deps import get_current_user_id
 from app.database import get_db
 from app.limiter import limit_emails_approve, limiter
 from app.models.email import Email, EmailStatus
 from app.models.lead import Lead, LeadStatus
-from app.schemas.email import EmailResponse, EmailUpdateRequest
+from app.schemas.email import EmailResponse, EmailUpdateRequest, email_to_response
 from app.services.campaign_advance import complete_campaign_if_done
 
 router = APIRouter(prefix="/api/emails", tags=["emails"])
@@ -40,38 +40,15 @@ async def _get_email_owned(
     return email
 
 
-def _to_response(email: Email) -> EmailResponse:
-    # Manual dict required: EmailResponse.lead_name has no direct ORM column.
-    return EmailResponse.model_validate(
-        {
-            "id": email.id,
-            "lead_id": email.lead_id,
-            "lead_name": email.lead.name,
-            "lead_email": email.lead.email,
-            "lead_company": email.lead.company,
-            "subject": email.subject,
-            "body_text": email.body_text,
-            "body_html": email.body_html,
-            "status": email.status,
-            "sent_at": email.sent_at,
-            "gmail_message_id": email.gmail_message_id,
-            "error_message": email.error_message,
-            "created_at": email.created_at,
-            "updated_at": email.updated_at,
-        }
-    )
-
-
 @router.get("/{email_id}", response_model=EmailResponse)
 async def get_email(
     email_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> EmailResponse:
     """Get a single email draft with full detail."""
-    user_id = uuid.UUID(settings.demo_user_id)
     email = await _get_email_owned(email_id, session, user_id)
-    return _to_response(email)
+    return email_to_response(email)
 
 
 @router.post("/{email_id}/approve", response_model=EmailResponse)
@@ -80,10 +57,9 @@ async def approve_email(
     request: Request,
     email_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> EmailResponse:
     """Mark a draft email as approved. Sending is triggered separately via bulk-send."""
-    user_id = uuid.UUID(settings.demo_user_id)
     email = await _get_email_owned(email_id, session, user_id)
 
     if email.status not in (EmailStatus.draft, EmailStatus.rejected):
@@ -97,17 +73,16 @@ async def approve_email(
     await session.commit()
     await session.refresh(email, attribute_names=["updated_at"])
 
-    return _to_response(email)
+    return email_to_response(email)
 
 
 @router.post("/{email_id}/reject", response_model=EmailResponse)
 async def reject_email(
     email_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> EmailResponse:
     """Reject a draft email — it will not be sent."""
-    user_id = uuid.UUID(settings.demo_user_id)
     email = await _get_email_owned(email_id, session, user_id)
 
     if email.status not in (EmailStatus.draft, EmailStatus.approved):
@@ -122,7 +97,7 @@ async def reject_email(
     await session.commit()
     await session.refresh(email, attribute_names=["updated_at"])
 
-    return _to_response(email)
+    return email_to_response(email)
 
 
 @router.patch("/{email_id}", response_model=EmailResponse)
@@ -130,10 +105,9 @@ async def update_email(
     email_id: uuid.UUID,
     body: EmailUpdateRequest,
     session: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> EmailResponse:
     """Edit subject/body of a draft email. Only allowed when status=draft."""
-    user_id = uuid.UUID(settings.demo_user_id)
     email = await _get_email_owned(email_id, session, user_id)
 
     if email.status != EmailStatus.draft:
@@ -154,4 +128,4 @@ async def update_email(
 
     await session.commit()
     await session.refresh(email, attribute_names=["updated_at"])
-    return _to_response(email)
+    return email_to_response(email)

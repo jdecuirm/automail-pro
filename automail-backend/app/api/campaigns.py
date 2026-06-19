@@ -6,20 +6,16 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Reques
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user_id
 from app.config import Settings, get_settings
 from app.database import get_db
 from app.limiter import limit_campaigns_create, limiter
 from app.models.campaign import Campaign
-from app.models.email import Email, EmailStatus
-from app.models.lead import Lead
-from app.models.user import User
 from app.schemas.campaign import CampaignListItem, CampaignResponse
 from app.schemas.csv_upload import CSVUploadResponse
 from app.schemas.email import BulkSendResponse, EmailResponse
 from app.schemas.lead import LeadPagination
 from app.services import campaign_service
-from app.services.daily_quota import remaining_quota
-from app.tasks.sending import send_email_task
 
 router = APIRouter(prefix="/api/campaigns", tags=["campaigns"])
 
@@ -40,6 +36,7 @@ async def create_campaign(
     name: str = Form(..., min_length=1, max_length=255, description="Campaign name"),
     session: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> CSVUploadResponse:
     """Upload a CSV of leads and create a new campaign."""
     content_type = (file.content_type or "").split(";")[0].strip().lower()
@@ -59,7 +56,6 @@ async def create_campaign(
         )
 
     filename = file.filename or "upload.csv"
-    user_id = uuid.UUID(settings.demo_user_id)
 
     try:
         result = await campaign_service.create_campaign_from_csv(
@@ -74,10 +70,9 @@ async def create_campaign(
 @router.get("", response_model=list[CampaignListItem])
 async def list_campaigns(
     session: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> list[CampaignListItem]:
     """List all campaigns for the demo user."""
-    user_id = uuid.UUID(settings.demo_user_id)
     return await campaign_service.list_campaigns(session, user_id)
 
 
@@ -85,10 +80,9 @@ async def list_campaigns(
 async def get_campaign(
     campaign_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> CampaignResponse:
     """Get campaign detail by ID."""
-    user_id = uuid.UUID(settings.demo_user_id)
     campaign = await campaign_service.get_campaign(session, campaign_id, user_id)
     if campaign is None:
         raise HTTPException(status_code=404, detail="Campaign not found.")
@@ -99,10 +93,9 @@ async def get_campaign(
 async def delete_campaign(
     campaign_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> None:
     """Delete a campaign and all its leads, emails, and research (cascade)."""
-    user_id = uuid.UUID(settings.demo_user_id)
     exists = (
         await session.execute(
             select(Campaign.id).where(Campaign.id == campaign_id, Campaign.user_id == user_id)
@@ -120,10 +113,9 @@ async def list_campaign_leads(
     page: int = Query(1, ge=1, description="Page number (1-indexed)"),
     page_size: int = Query(50, ge=1, le=200, description="Items per page"),
     session: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> LeadPagination:
     """List leads for a campaign with pagination."""
-    user_id = uuid.UUID(settings.demo_user_id)
     result = await campaign_service.list_leads(session, campaign_id, user_id, page, page_size)
     if result is None:
         raise HTTPException(status_code=404, detail="Campaign not found.")
@@ -134,10 +126,9 @@ async def list_campaign_leads(
 async def list_campaign_emails(
     campaign_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> list[EmailResponse]:
     """List all email drafts for a campaign."""
-    user_id = uuid.UUID(settings.demo_user_id)
     result = await campaign_service.list_emails(session, campaign_id, user_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Campaign not found.")
@@ -148,57 +139,10 @@ async def list_campaign_emails(
 async def bulk_send_approved(
     campaign_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    user_id: uuid.UUID = Depends(get_current_user_id),
 ) -> BulkSendResponse:
     """Dispatch send tasks for all approved emails in a campaign, up to daily quota."""
-    user_id = uuid.UUID(settings.demo_user_id)
-
-    campaign = (
-        await session.execute(
-            select(Campaign).where(
-                Campaign.id == campaign_id,
-                Campaign.user_id == user_id,
-            )
-        )
-    ).scalar_one_or_none()
-    if campaign is None:
+    result = await campaign_service.dispatch_approved_emails(session, campaign_id, user_id)
+    if result is None:
         raise HTTPException(status_code=404, detail="Campaign not found.")
-
-    # Gate: sender profile must be complete before any email can be dispatched.
-    user: User | None = await session.get(User, user_id)
-    if user is None or not (user.sender_name and user.sender_company):
-        raise HTTPException(
-            status_code=422,
-            detail=(
-                "Sender profile incomplete. "
-                "Set your name and company in Settings → Account before sending."
-            ),
-        )
-
-    approved_emails = (
-        (
-            await session.execute(
-                select(Email)
-                .join(Lead, Email.lead_id == Lead.id)
-                .where(
-                    Lead.campaign_id == campaign_id,
-                    Email.status == EmailStatus.approved,
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
-
-    quota_left = await remaining_quota(user_id, session)
-    to_dispatch = approved_emails[:quota_left]
-    blocked = approved_emails[quota_left:]
-
-    for email in to_dispatch:
-        send_email_task.delay(str(email.id))
-
-    return BulkSendResponse(
-        dispatched=len(to_dispatch),
-        blocked_by_quota=len(blocked),
-        remaining_quota_today=max(0, quota_left - len(to_dispatch)),
-    )
+    return result

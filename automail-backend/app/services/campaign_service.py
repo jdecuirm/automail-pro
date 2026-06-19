@@ -5,16 +5,19 @@ import uuid
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.email import Email
 from app.models.lead import Lead, LeadStatus
 from app.schemas.campaign import CampaignListItem, CampaignResponse, CampaignStats
 from app.schemas.csv_upload import CSVUploadResponse
-from app.schemas.email import EmailResponse
+from app.schemas.email import BulkSendResponse, EmailResponse, email_to_response
 from app.schemas.lead import LeadPagination, LeadResponse
 from app.services.csv_parser import parse_csv
+from app.services.daily_quota import remaining_quota
 from app.tasks.scraping import scrape_lead
+from app.tasks.sending import send_email_task
 
 logger = logging.getLogger(__name__)
 
@@ -208,34 +211,84 @@ async def list_emails(
         return None
 
     stmt = (
-        select(
-            Email,
-            Lead.name.label("lead_name"),
-            Lead.email.label("lead_email"),
-            Lead.company.label("lead_company"),
-        )
+        select(Email)
         .join(Lead, Email.lead_id == Lead.id)
         .where(Lead.campaign_id == campaign_id)
+        .options(selectinload(Email.lead))
         .order_by(Email.created_at)
     )
-    rows = (await session.execute(stmt)).all()
+    emails = (await session.execute(stmt)).scalars().all()
+    return [email_to_response(email) for email in emails]
 
-    results: list[EmailResponse] = []
-    for email, lead_name, lead_email, lead_company in rows:
-        data = EmailResponse.model_validate(
-            {
-                "id": email.id,
-                "lead_id": email.lead_id,
-                "lead_name": lead_name,
-                "lead_email": lead_email,
-                "lead_company": lead_company,
-                "subject": email.subject,
-                "body_text": email.body_text,
-                "body_html": email.body_html,
-                "status": email.status,
-                "created_at": email.created_at,
-                "updated_at": email.updated_at,
-            }
+
+async def dispatch_approved_emails(
+    session: AsyncSession,
+    campaign_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> BulkSendResponse | None:
+    """Dispatch send tasks for all approved emails in a campaign.
+
+    Args:
+        session: Async database session.
+        campaign_id: UUID of the campaign to process.
+        user_id: UUID of the requesting user (ownership check).
+
+    Returns:
+        BulkSendResponse with dispatch counts, or None if campaign not found.
+
+    Raises:
+        HTTPException: 422 if the sender profile is incomplete.
+    """
+    from fastapi import HTTPException
+
+    from app.models.email import EmailStatus
+    from app.models.user import User
+
+    campaign = (
+        await session.execute(
+            select(Campaign).where(
+                Campaign.id == campaign_id,
+                Campaign.user_id == user_id,
+            )
         )
-        results.append(data)
-    return results
+    ).scalar_one_or_none()
+    if campaign is None:
+        return None
+
+    user: User | None = await session.get(User, user_id)
+    if user is None or not (user.sender_name and user.sender_company):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Sender profile incomplete. "
+                "Set your name and company in Settings → Account before sending."
+            ),
+        )
+
+    approved_emails = (
+        (
+            await session.execute(
+                select(Email)
+                .join(Lead, Email.lead_id == Lead.id)
+                .where(
+                    Lead.campaign_id == campaign_id,
+                    Email.status == EmailStatus.approved,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    quota_left = await remaining_quota(user_id, session)
+    to_dispatch = approved_emails[:quota_left]
+    blocked = approved_emails[quota_left:]
+
+    for email in to_dispatch:
+        send_email_task.delay(str(email.id))
+
+    return BulkSendResponse(
+        dispatched=len(to_dispatch),
+        blocked_by_quota=len(blocked),
+        remaining_quota_today=max(0, quota_left - len(to_dispatch)),
+    )

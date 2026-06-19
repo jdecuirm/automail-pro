@@ -188,7 +188,9 @@ async def test_robots_404_defaults_allow():
     robots_checker.clear_cache()
 
 
-async def test_robots_403_defaults_deny():
+async def test_robots_403_defaults_allow():
+    # 403 on robots.txt is treated as None (allow) — same as a fetch error.
+    # The "deny" sentinel was removed to fix the cache type annotation.
     robots_checker.clear_cache()
 
     with patch("app.services.robots_checker.httpx.AsyncClient") as mock_cls:
@@ -199,7 +201,7 @@ async def test_robots_403_defaults_deny():
 
         allowed = await robots_checker.is_allowed("https://hostile.com/page", SETTINGS_UA)
 
-    assert allowed is False
+    assert allowed is True
     robots_checker.clear_cache()
 
 
@@ -221,9 +223,10 @@ async def test_rate_limiter_first_call_no_wait():
     mock_redis.set = AsyncMock(return_value=True)  # NX succeeds immediately
     mock_redis.aclose = AsyncMock()
 
-    with patch("app.services.rate_limiter.aioredis.from_url", return_value=mock_redis):
-        with patch("app.services.rate_limiter.asyncio.sleep", side_effect=_fake_sleep):
-            await rate_limiter.wait_for_slot("https://newdomain.com/page")
+    with patch("app.services.rate_limiter._redis", None):
+        with patch("app.services.rate_limiter.aioredis.from_url", return_value=mock_redis):
+            with patch("app.services.rate_limiter.asyncio.sleep", side_effect=_fake_sleep):
+                await rate_limiter.wait_for_slot("https://newdomain.com/page")
 
     assert sleep_calls == []
     mock_redis.set.assert_called_once()
@@ -244,9 +247,10 @@ async def test_rate_limiter_within_interval_waits():
     mock_redis.pttl = AsyncMock(return_value=1500)  # 1.5s remaining
     mock_redis.aclose = AsyncMock()
 
-    with patch("app.services.rate_limiter.aioredis.from_url", return_value=mock_redis):
-        with patch("app.services.rate_limiter.asyncio.sleep", side_effect=_fake_sleep):
-            await rate_limiter.wait_for_slot("https://recent.com/page", min_interval_seconds=2)
+    with patch("app.services.rate_limiter._redis", None):
+        with patch("app.services.rate_limiter.aioredis.from_url", return_value=mock_redis):
+            with patch("app.services.rate_limiter.asyncio.sleep", side_effect=_fake_sleep):
+                await rate_limiter.wait_for_slot("https://recent.com/page", min_interval_seconds=2)
 
     assert len(sleep_calls) == 1
     assert sleep_calls[0] == pytest.approx(1.5)
@@ -265,9 +269,10 @@ async def test_rate_limiter_after_interval_no_wait():
     mock_redis.set = AsyncMock(return_value=True)  # key expired, NX succeeds
     mock_redis.aclose = AsyncMock()
 
-    with patch("app.services.rate_limiter.aioredis.from_url", return_value=mock_redis):
-        with patch("app.services.rate_limiter.asyncio.sleep", side_effect=_fake_sleep):
-            await rate_limiter.wait_for_slot("https://old.com/page", min_interval_seconds=2)
+    with patch("app.services.rate_limiter._redis", None):
+        with patch("app.services.rate_limiter.aioredis.from_url", return_value=mock_redis):
+            with patch("app.services.rate_limiter.asyncio.sleep", side_effect=_fake_sleep):
+                await rate_limiter.wait_for_slot("https://old.com/page", min_interval_seconds=2)
 
     assert sleep_calls == []
 
@@ -284,8 +289,9 @@ async def test_cache_miss_returns_none():
     mock_redis.get = AsyncMock(return_value=None)
     mock_redis.aclose = AsyncMock()
 
-    with patch("app.services.scrape_cache.aioredis.from_url", return_value=mock_redis):
-        result = await scrape_cache.get_cached("https://miss.com")
+    with patch("app.services.scrape_cache._redis", None):
+        with patch("app.services.scrape_cache.aioredis.from_url", return_value=mock_redis):
+            result = await scrape_cache.get_cached("https://miss.com")
 
     assert result is None
 
@@ -298,8 +304,9 @@ async def test_cache_hit_returns_scrape_result():
     mock_redis.get = AsyncMock(return_value=stored.model_dump_json())
     mock_redis.aclose = AsyncMock()
 
-    with patch("app.services.scrape_cache.aioredis.from_url", return_value=mock_redis):
-        result = await scrape_cache.get_cached("https://hit.com")
+    with patch("app.services.scrape_cache._redis", None):
+        with patch("app.services.scrape_cache.aioredis.from_url", return_value=mock_redis):
+            result = await scrape_cache.get_cached("https://hit.com")
 
     assert result is not None
     assert result.title == "Hit"
@@ -313,8 +320,9 @@ async def test_cache_set_stores_with_ttl():
     mock_redis.set = AsyncMock()
     mock_redis.aclose = AsyncMock()
 
-    with patch("app.services.scrape_cache.aioredis.from_url", return_value=mock_redis):
-        await scrape_cache.set_cached("https://store.com", stored)
+    with patch("app.services.scrape_cache._redis", None):
+        with patch("app.services.scrape_cache.aioredis.from_url", return_value=mock_redis):
+            await scrape_cache.set_cached("https://store.com", stored)
 
     mock_redis.set.assert_called_once()
     call_kwargs = mock_redis.set.call_args

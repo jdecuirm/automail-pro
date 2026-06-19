@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -62,38 +62,54 @@ def test_verify_state_tampered_payload_raises():
 
 
 # ---------------------------------------------------------------------------
-# build_auth_url
+# build_auth_url (now async, PKCE verifier stored in Redis)
 # ---------------------------------------------------------------------------
 
 
-def test_build_auth_url_contains_scopes():
+@pytest.mark.asyncio
+async def test_build_auth_url_contains_scopes():
+    import app.services.google_oauth as oauth_module
     from app.services.google_oauth import build_auth_url
 
-    url = build_auth_url("signed-state-token")
+    mock_redis = AsyncMock()
+    with patch.object(oauth_module, "_pkce_redis", None):
+        with patch("app.services.google_oauth._get_pkce_redis", return_value=mock_redis):
+            url = await build_auth_url("signed-state-token")
     assert "gmail.send" in url
     assert "userinfo.email" in url
 
 
-def test_build_auth_url_contains_state():
+@pytest.mark.asyncio
+async def test_build_auth_url_contains_state():
+    import app.services.google_oauth as oauth_module
     from app.services.google_oauth import build_auth_url
 
-    url = build_auth_url("my-state-value")
+    mock_redis = AsyncMock()
+    with patch.object(oauth_module, "_pkce_redis", None):
+        with patch("app.services.google_oauth._get_pkce_redis", return_value=mock_redis):
+            url = await build_auth_url("my-state-value")
     assert "my-state-value" in url
 
 
-def test_build_auth_url_offline_access():
+@pytest.mark.asyncio
+async def test_build_auth_url_offline_access():
+    import app.services.google_oauth as oauth_module
     from app.services.google_oauth import build_auth_url
 
-    url = build_auth_url("state")
+    mock_redis = AsyncMock()
+    with patch.object(oauth_module, "_pkce_redis", None):
+        with patch("app.services.google_oauth._get_pkce_redis", return_value=mock_redis):
+            url = await build_auth_url("state")
     assert "offline" in url
 
 
 # ---------------------------------------------------------------------------
-# exchange_code_for_tokens (mocked Google)
+# exchange_code_for_tokens (now async, uses asyncio.to_thread + Redis getdel)
 # ---------------------------------------------------------------------------
 
 
-def test_exchange_code_for_tokens_returns_expected_keys():
+@pytest.mark.asyncio
+async def test_exchange_code_for_tokens_returns_expected_keys():
     from app.services.google_oauth import exchange_code_for_tokens
 
     mock_creds = MagicMock()
@@ -104,13 +120,15 @@ def test_exchange_code_for_tokens_returns_expected_keys():
 
     mock_flow = MagicMock()
     mock_flow.credentials = mock_creds
+    mock_flow.fetch_token = MagicMock()  # sync mock — wrappable by to_thread
 
     with patch("app.services.google_oauth._create_flow", return_value=mock_flow):
         with patch(
             "app.services.google_oauth._get_email_from_token",
+            new_callable=AsyncMock,
             return_value="user@gmail.com",
         ):
-            result = exchange_code_for_tokens("auth-code-123")
+            result = await exchange_code_for_tokens("auth-code-123")
 
     assert result["access_token"] == "access-token-abc"
     assert result["refresh_token"] == "refresh-token-xyz"
