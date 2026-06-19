@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import Settings, get_settings
 from app.database import get_db
+from app.limiter import limit_emails_approve, limiter
 from app.models.email import Email, EmailStatus
 from app.models.lead import Lead, LeadStatus
 from app.schemas.email import EmailResponse, EmailUpdateRequest
@@ -74,7 +75,9 @@ async def get_email(
 
 
 @router.post("/{email_id}/approve", response_model=EmailResponse)
+@limiter.limit(limit_emails_approve)
 async def approve_email(
+    request: Request,
     email_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),

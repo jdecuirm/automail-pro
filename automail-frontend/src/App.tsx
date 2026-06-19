@@ -1,17 +1,22 @@
+import { lazy, Suspense } from "react";
 import {
   createBrowserRouter,
   Navigate,
   RouterProvider,
 } from "react-router-dom";
 import Layout from "@/routes/Layout";
-import Dashboard from "@/routes/Dashboard";
-import CampaignList from "@/routes/Campaigns/List";
-import CampaignCreate from "@/routes/Campaigns/Create";
-import CampaignDetail from "@/routes/Campaigns/Detail";
-import SettingsLayout from "@/routes/Settings/SettingsLayout";
-import SettingsGmail from "@/routes/Settings/Gmail";
-import SettingsAccount from "@/routes/Settings/Account";
 import NotFound from "@/routes/NotFound";
+import { RouteLoadingSkeleton } from "@/components/common/RouteLoadingSkeleton";
+
+// errorElement cannot be lazy — it handles errors including lazy-load failures.
+// Layout is not lazy — it's always rendered and wraps everything.
+const Dashboard = lazy(() => import("@/routes/Dashboard"));
+const CampaignList = lazy(() => import("@/routes/Campaigns/List"));
+const CampaignCreate = lazy(() => import("@/routes/Campaigns/Create"));
+const CampaignDetail = lazy(() => import("@/routes/Campaigns/Detail"));
+const SettingsLayout = lazy(() => import("@/routes/Settings/SettingsLayout"));
+const SettingsAccount = lazy(() => import("@/routes/Settings/Account"));
+const SettingsGmail = lazy(() => import("@/routes/Settings/Gmail"));
 
 const router = createBrowserRouter([
   {
@@ -19,17 +24,63 @@ const router = createBrowserRouter([
     element: <Layout />,
     errorElement: <NotFound />,
     children: [
-      { index: true, element: <Dashboard /> },
-      { path: "campaigns", element: <CampaignList /> },
-      { path: "campaigns/new", element: <CampaignCreate /> },
-      { path: "campaigns/:id", element: <CampaignDetail /> },
+      {
+        index: true,
+        element: (
+          <Suspense fallback={<RouteLoadingSkeleton />}>
+            <Dashboard />
+          </Suspense>
+        ),
+      },
+      {
+        path: "campaigns",
+        element: (
+          <Suspense fallback={<RouteLoadingSkeleton />}>
+            <CampaignList />
+          </Suspense>
+        ),
+      },
+      {
+        path: "campaigns/new",
+        element: (
+          <Suspense fallback={<RouteLoadingSkeleton />}>
+            <CampaignCreate />
+          </Suspense>
+        ),
+      },
+      {
+        path: "campaigns/:id",
+        element: (
+          <Suspense fallback={<RouteLoadingSkeleton />}>
+            <CampaignDetail />
+          </Suspense>
+        ),
+      },
       {
         path: "settings",
-        element: <SettingsLayout />,
+        element: (
+          <Suspense fallback={<RouteLoadingSkeleton />}>
+            <SettingsLayout />
+          </Suspense>
+        ),
         children: [
           { index: true, element: <Navigate to="account" replace /> },
-          { path: "account", element: <SettingsAccount /> },
-          { path: "gmail", element: <SettingsGmail /> },
+          {
+            path: "account",
+            element: (
+              <Suspense fallback={<RouteLoadingSkeleton />}>
+                <SettingsAccount />
+              </Suspense>
+            ),
+          },
+          {
+            path: "gmail",
+            element: (
+              <Suspense fallback={<RouteLoadingSkeleton />}>
+                <SettingsGmail />
+              </Suspense>
+            ),
+          },
         ],
       },
       { path: "*", element: <NotFound /> },

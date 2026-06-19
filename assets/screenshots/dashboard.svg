@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <!-- Background -->
+  <rect width="1280" height="720" fill="#0f172a"/>
+
+  <!-- Sidebar -->
+  <rect x="0" y="0" width="220" height="720" fill="#1e293b"/>
+  <rect x="16" y="20" width="120" height="28" rx="4" fill="#6366f1"/>
+  <text x="76" y="39" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="white" text-anchor="middle">AutoMail Pro</text>
+
+  <!-- Sidebar nav items -->
+  <rect x="12" y="72" width="196" height="36" rx="6" fill="#334155"/>
+  <text x="44" y="95" font-family="Arial, sans-serif" font-size="13" fill="white">Dashboard</text>
+  <rect x="12" y="116" width="196" height="36" rx="6" fill="transparent"/>
+  <text x="44" y="139" font-family="Arial, sans-serif" font-size="13" fill="#94a3b8">Campaigns</text>
+  <rect x="12" y="160" width="196" height="36" rx="6" fill="transparent"/>
+  <text x="44" y="183" font-family="Arial, sans-serif" font-size="13" fill="#94a3b8">Settings</text>
+
+  <!-- Main content area -->
+  <text x="252" y="52" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="white">Dashboard</text>
+  <text x="252" y="74" font-family="Arial, sans-serif" font-size="13" fill="#64748b">Overview of your outreach activity</text>
+
+  <!-- Stat cards row -->
+  <!-- Card 1 -->
+  <rect x="252" y="96" width="220" height="96" rx="8" fill="#1e293b"/>
+  <text x="272" y="124" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8">Total Campaigns</text>
+  <text x="272" y="160" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="white">12</text>
+
+  <!-- Card 2 -->
+  <rect x="488" y="96" width="220" height="96" rx="8" fill="#1e293b"/>
+  <text x="508" y="124" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8">Emails Sent</text>
+  <text x="508" y="160" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="white">347</text>
+
+  <!-- Card 3 -->
+  <rect x="724" y="96" width="220" height="96" rx="8" fill="#1e293b"/>
+  <text x="744" y="124" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8">Open Rate</text>
+  <text x="744" y="160" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#22c55e">38%</text>
+
+  <!-- Card 4 -->
+  <rect x="960" y="96" width="280" height="96" rx="8" fill="#1e293b"/>
+  <text x="980" y="124" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8">Pending Review</text>
+  <text x="980" y="160" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="#f59e0b">24</text>
+
+  <!-- Recent campaigns table -->
+  <rect x="252" y="212" width="988" height="460" rx="8" fill="#1e293b"/>
+  <text x="272" y="244" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">Recent Campaigns</text>
+
+  <!-- Table header -->
+  <rect x="252" y="260" width="988" height="36" fill="#0f172a"/>
+  <text x="272" y="283" font-family="Arial, sans-serif" font-size="12" fill="#64748b">NAME</text>
+  <text x="560" y="283" font-family="Arial, sans-serif" font-size="12" fill="#64748b">STATUS</text>
+  <text x="720" y="283" font-family="Arial, sans-serif" font-size="12" fill="#64748b">LEADS</text>
+  <text x="860" y="283" font-family="Arial, sans-serif" font-size="12" fill="#64748b">OPEN RATE</text>
+  <text x="1040" y="283" font-family="Arial, sans-serif" font-size="12" fill="#64748b">CREATED</text>
+
+  <!-- Table rows -->
+  <rect x="252" y="296" width="988" height="52" fill="#1e293b"/>
+  <text x="272" y="328" font-family="Arial, sans-serif" font-size="14" fill="white">Q3 SaaS Outreach</text>
+  <rect x="548" y="308" width="88" height="22" rx="11" fill="#16a34a" fill-opacity="0.2"/>
+  <text x="592" y="324" font-family="Arial, sans-serif" font-size="12" fill="#22c55e" text-anchor="middle">Completed</text>
+  <text x="720" y="328" font-family="Arial, sans-serif" font-size="14" fill="white">85</text>
+  <text x="860" y="328" font-family="Arial, sans-serif" font-size="14" fill="#22c55e">42%</text>
+  <text x="1040" y="328" font-family="Arial, sans-serif" font-size="14" fill="#94a3b8">Jun 18</text>
+
+  <rect x="252" y="348" width="988" height="52" fill="#1e293b"/>
+  <text x="272" y="380" font-family="Arial, sans-serif" font-size="14" fill="white">Agency Prospects Jul</text>
+  <rect x="548" y="360" width="72" height="22" rx="11" fill="#d97706" fill-opacity="0.2"/>
+  <text x="584" y="376" font-family="Arial, sans-serif" font-size="12" fill="#f59e0b" text-anchor="middle">Review</text>
+  <text x="720" y="380" font-family="Arial, sans-serif" font-size="14" fill="white">42</text>
+  <text x="860" y="380" font-family="Arial, sans-serif" font-size="14" fill="#94a3b8">—</text>
+  <text x="1040" y="380" font-family="Arial, sans-serif" font-size="14" fill="#94a3b8">Jun 19</text>
+
+  <rect x="252" y="400" width="988" height="52" fill="#1e293b"/>
+  <text x="272" y="432" font-family="Arial, sans-serif" font-size="14" fill="white">E-commerce Follow-up</text>
+  <rect x="548" y="412" width="80" height="22" rx="11" fill="#2563eb" fill-opacity="0.2"/>
+  <text x="588" y="428" font-family="Arial, sans-serif" font-size="12" fill="#60a5fa" text-anchor="middle">Scraping</text>
+  <text x="720" y="432" font-family="Arial, sans-serif" font-size="14" fill="white">120</text>
+  <text x="860" y="432" font-family="Arial, sans-serif" font-size="14" fill="#94a3b8">—</text>
+  <text x="1040" y="432" font-family="Arial, sans-serif" font-size="14" fill="#94a3b8">Jun 19</text>
+
+  <!-- Watermark label -->
+  <text x="640" y="704" font-family="Arial, sans-serif" font-size="11" fill="#334155" text-anchor="middle">AutoMail Pro — Dashboard View (placeholder screenshot)</text>
+</svg>

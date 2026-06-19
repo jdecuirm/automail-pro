@@ -215,16 +215,16 @@ approved/rejected -> sending -> sent -> opened`
 
 ## Build stages & checkpoints
 
-- Stage A: Scaffold (monorepo structure, uv init, FastAPI hello, Vite hello)
-- Stage B: PostgreSQL + SQLAlchemy + Alembic + initial migrations
-- Stage C: Celery + Redis setup + smoke task
-- Stage D: CSV upload + lead parsing + DB persistence
-- Stage E: Scraping pipeline (httpx + BeautifulSoup + Playwright fallback)
-- Stage F: Claude API integration + email generation prompt
-- Stage G: Gmail OAuth + email sending
-- Stage H: Tracking pixel endpoint (Pro Lite feature)
-- Stage I: React dashboard (campaigns + leads + email review)
-- Stage J: README + LICENSE + CI + tests + security audit
+- Stage A: Scaffold (monorepo structure, uv init, FastAPI hello, Vite hello) ✅
+- Stage B: PostgreSQL + SQLAlchemy + Alembic + initial migrations ✅
+- Stage C: Celery + Redis setup + smoke task ✅
+- Stage D: CSV upload + lead parsing + DB persistence ✅
+- Stage E: Scraping pipeline (httpx + BeautifulSoup + Playwright fallback) ✅
+- Stage F: Claude API integration + email generation prompt ✅
+- Stage G: Gmail OAuth + email sending ✅
+- Stage H: Tracking pixel endpoint (Pro Lite feature) ✅
+- Stage I: React dashboard (campaigns + leads + email review) ✅
+- Stage J: README + LICENSE + CI + tests + security audit ✅
 - Stage K: Deploy (Railway backend + worker + Postgres + Redis, Render frontend)
 
 At each checkpoint: report what was done, confirm it runs, WAIT for green light.

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#0f172a"/>
+  <rect x="0" y="0" width="220" height="720" fill="#1e293b"/>
+  <rect x="16" y="20" width="120" height="28" rx="4" fill="#6366f1"/>
+  <text x="76" y="39" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="white" text-anchor="middle">AutoMail Pro</text>
+
+  <text x="44" y="95" font-family="Arial, sans-serif" font-size="13" fill="#94a3b8">Dashboard</text>
+  <rect x="12" y="116" width="196" height="36" rx="6" fill="#334155"/>
+  <text x="44" y="139" font-family="Arial, sans-serif" font-size="13" fill="white">Campaigns</text>
+  <text x="44" y="183" font-family="Arial, sans-serif" font-size="13" fill="#94a3b8">Settings</text>
+
+  <text x="252" y="52" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="white">Campaigns</text>
+
+  <!-- New campaign button -->
+  <rect x="1120" y="28" width="120" height="36" rx="6" fill="#6366f1"/>
+  <text x="1180" y="51" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="white" text-anchor="middle">+ New Campaign</text>
+
+  <!-- Campaign cards -->
+  <rect x="252" y="80" width="988" height="120" rx="8" fill="#1e293b"/>
+  <text x="276" y="116" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">Q3 SaaS Outreach</text>
+  <text x="276" y="140" font-family="Arial, sans-serif" font-size="13" fill="#64748b">leads-saas-q3.csv · 85 leads · Created Jun 18, 2026</text>
+  <rect x="276" y="156" width="88" height="22" rx="11" fill="#16a34a" fill-opacity="0.2"/>
+  <text x="320" y="172" font-family="Arial, sans-serif" font-size="12" fill="#22c55e" text-anchor="middle">Completed</text>
+  <!-- Progress bar -->
+  <rect x="700" y="100" width="500" height="6" rx="3" fill="#334155"/>
+  <rect x="700" y="100" width="500" height="6" rx="3" fill="#22c55e"/>
+  <text x="700" y="140" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8">85/85 sent</text>
+  <text x="980" y="140" font-family="Arial, sans-serif" font-size="12" fill="#22c55e">38% open rate</text>
+
+  <rect x="252" y="212" width="988" height="120" rx="8" fill="#1e293b"/>
+  <text x="276" y="248" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">Agency Prospects Jul</text>
+  <text x="276" y="272" font-family="Arial, sans-serif" font-size="13" fill="#64748b">agencies-jul.csv · 42 leads · Created Jun 19, 2026</text>
+  <rect x="276" y="288" width="72" height="22" rx="11" fill="#d97706" fill-opacity="0.2"/>
+  <text x="312" y="304" font-family="Arial, sans-serif" font-size="12" fill="#f59e0b" text-anchor="middle">Review</text>
+  <rect x="700" y="232" width="500" height="6" rx="3" fill="#334155"/>
+  <rect x="700" y="232" width="420" height="6" rx="3" fill="#6366f1"/>
+  <text x="700" y="272" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8">35/42 drafted · 7 pending</text>
+
+  <rect x="252" y="344" width="988" height="120" rx="8" fill="#1e293b"/>
+  <text x="276" y="380" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">E-commerce Follow-up</text>
+  <text x="276" y="404" font-family="Arial, sans-serif" font-size="13" fill="#64748b">ecommerce-batch.csv · 120 leads · Created Jun 19, 2026</text>
+  <rect x="276" y="420" width="80" height="22" rx="11" fill="#2563eb" fill-opacity="0.2"/>
+  <text x="316" y="436" font-family="Arial, sans-serif" font-size="12" fill="#60a5fa" text-anchor="middle">Scraping</text>
+  <rect x="700" y="364" width="500" height="6" rx="3" fill="#334155"/>
+  <rect x="700" y="364" width="180" height="6" rx="3" fill="#3b82f6"/>
+  <text x="700" y="404" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8">36/120 scraped</text>
+
+  <text x="640" y="704" font-family="Arial, sans-serif" font-size="11" fill="#334155" text-anchor="middle">AutoMail Pro — Campaigns List (placeholder screenshot)</text>
+</svg>

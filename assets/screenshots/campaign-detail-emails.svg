@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#0f172a"/>
+  <rect x="0" y="0" width="220" height="720" fill="#1e293b"/>
+  <rect x="16" y="20" width="120" height="28" rx="4" fill="#6366f1"/>
+  <text x="76" y="39" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="white" text-anchor="middle">AutoMail Pro</text>
+
+  <!-- Breadcrumb + title -->
+  <text x="252" y="42" font-family="Arial, sans-serif" font-size="13" fill="#64748b">Campaigns / Agency Prospects Jul /</text>
+  <text x="508" y="42" font-family="Arial, sans-serif" font-size="13" fill="white">Emails</text>
+  <text x="252" y="76" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="white">Agency Prospects Jul</text>
+  <rect x="440" y="56" width="72" height="24" rx="12" fill="#d97706" fill-opacity="0.2"/>
+  <text x="476" y="73" font-family="Arial, sans-serif" font-size="12" fill="#f59e0b" text-anchor="middle">Review</text>
+
+  <!-- Tabs -->
+  <text x="264" y="116" font-family="Arial, sans-serif" font-size="14" fill="#64748b">Overview</text>
+  <text x="360" y="116" font-family="Arial, sans-serif" font-size="14" fill="#64748b">Leads</text>
+  <text x="452" y="116" font-family="Arial, sans-serif" font-size="14" fill="white">Emails</text>
+  <rect x="440" y="120" width="68" height="2" fill="#6366f1"/>
+  <text x="560" y="116" font-family="Arial, sans-serif" font-size="14" fill="#64748b">Metrics</text>
+
+  <!-- Bulk send button -->
+  <rect x="1040" y="54" width="200" height="36" rx="6" fill="#6366f1"/>
+  <text x="1140" y="77" font-family="Arial, sans-serif" font-size="13" font-weight="bold" fill="white" text-anchor="middle">Send All Approved (8)</text>
+
+  <!-- Email cards -->
+  <!-- Card 1 - approved -->
+  <rect x="252" y="140" width="988" height="108" rx="8" fill="#1e293b"/>
+  <text x="276" y="172" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="white">Quick question about Bright Agency's growth</text>
+  <text x="276" y="194" font-family="Arial, sans-serif" font-size="13" fill="#64748b">To: Sarah Chen · sarah@brightagency.com · Bright Agency</text>
+  <text x="276" y="218" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8">Hi Sarah, I noticed Bright Agency recently expanded into performance marketing...</text>
+  <rect x="1060" y="152" width="76" height="24" rx="12" fill="#16a34a" fill-opacity="0.2"/>
+  <text x="1098" y="169" font-family="Arial, sans-serif" font-size="12" fill="#22c55e" text-anchor="middle">Approved</text>
+  <text x="1156" y="169" font-family="Arial, sans-serif" font-size="20" fill="#64748b">⋯</text>
+
+  <!-- Card 2 - draft -->
+  <rect x="252" y="260" width="988" height="108" rx="8" fill="#1e293b"/>
+  <text x="276" y="292" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="white">Loved your recent case study on Acme</text>
+  <text x="276" y="314" font-family="Arial, sans-serif" font-size="13" fill="#64748b">To: Mark Rivera · mark@peakdigital.io · Peak Digital</text>
+  <text x="276" y="338" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8">Hi Mark, Your case study on Acme's 3x conversion lift was a great read...</text>
+  <rect x="1076" y="272" width="60" height="24" rx="12" fill="#334155"/>
+  <text x="1106" y="289" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8" text-anchor="middle">Draft</text>
+  <!-- Approve/Reject buttons -->
+  <rect x="1100" y="320" width="72" height="26" rx="5" fill="#16a34a" fill-opacity="0.2"/>
+  <text x="1136" y="338" font-family="Arial, sans-serif" font-size="12" fill="#22c55e" text-anchor="middle">Approve</text>
+  <rect x="1182" y="320" width="58" height="26" rx="5" fill="#7f1d1d" fill-opacity="0.3"/>
+  <text x="1211" y="338" font-family="Arial, sans-serif" font-size="12" fill="#f87171" text-anchor="middle">Reject</text>
+
+  <!-- Card 3 - sent -->
+  <rect x="252" y="380" width="988" height="108" rx="8" fill="#1e293b"/>
+  <text x="276" y="412" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="white">Partnership opportunity with your team</text>
+  <text x="276" y="434" font-family="Arial, sans-serif" font-size="13" fill="#64748b">To: Priya Patel · priya@nexusmedia.com · Nexus Media</text>
+  <text x="276" y="458" font-family="Arial, sans-serif" font-size="12" fill="#94a3b8">Hi Priya, Nexus Media's recent rebranding shows a clear focus on storytelling...</text>
+  <rect x="1082" y="392" width="54" height="24" rx="12" fill="#1e40af" fill-opacity="0.3"/>
+  <text x="1109" y="409" font-family="Arial, sans-serif" font-size="12" fill="#93c5fd" text-anchor="middle">Sent</text>
+  <rect x="1148" y="392" width="68" height="24" rx="12" fill="#581c87" fill-opacity="0.3"/>
+  <text x="1182" y="409" font-family="Arial, sans-serif" font-size="12" fill="#c084fc" text-anchor="middle">Opened</text>
+
+  <text x="640" y="704" font-family="Arial, sans-serif" font-size="11" fill="#334155" text-anchor="middle">AutoMail Pro — Emails Review Tab (placeholder screenshot)</text>
+</svg>

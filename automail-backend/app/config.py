@@ -66,6 +66,15 @@ class Settings(BaseSettings):
     # Demo auth — temporary until Stage J introduces real user management
     demo_user_id: str = "00000000-0000-0000-0000-000000000001"
 
+    # Logging
+    log_level: str = "INFO"
+
+    # Rate limiting (set to False in tests / dev to avoid interference)
+    rate_limiting_enabled: bool = True
+    rate_limit_campaigns_create: str = "10/hour"
+    rate_limit_oauth_authorize: str = "5/hour"
+    rate_limit_emails_approve: str = "100/hour"
+
     # CSV upload limits
     csv_max_size_mb: int = 5
     csv_max_rows: int = 10_000

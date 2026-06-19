@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
 from app.database import get_db
+from app.limiter import limit_oauth_authorize, limiter
 from app.models.gmail_credential import GmailCredential
 from app.services import google_oauth
 from app.services.encryption import encrypt_str
@@ -29,7 +30,9 @@ class OAuthStatusResponse(BaseModel):
 
 
 @router.get("/authorize")
+@limiter.limit(limit_oauth_authorize)
 async def authorize(
+    request: Request,
     settings: Settings = Depends(get_settings),
 ) -> RedirectResponse:
     """Redirect the user to Google's OAuth consent screen."""

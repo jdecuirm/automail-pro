@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
 from app.database import get_db
+from app.limiter import limit_campaigns_create, limiter
 from app.models.campaign import Campaign
 from app.models.email import Email, EmailStatus
 from app.models.lead import Lead
@@ -32,7 +33,9 @@ _ACCEPTED_CONTENT_TYPES = {
 
 
 @router.post("", status_code=201, response_model=CSVUploadResponse)
+@limiter.limit(limit_campaigns_create)
 async def create_campaign(
+    request: Request,
     file: UploadFile = File(..., description="CSV file with leads"),
     name: str = Form(..., min_length=1, max_length=255, description="Campaign name"),
     session: AsyncSession = Depends(get_db),
