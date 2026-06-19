@@ -8,7 +8,7 @@ import ThemeToggle from "./ThemeToggle";
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/campaigns", label: "Campaigns", icon: Send, end: false },
-  { to: "/settings/gmail", label: "Settings", icon: Settings, end: false },
+  { to: "/settings", label: "Settings", icon: Settings, end: false },
 ] as const;
 
 function NavItem({

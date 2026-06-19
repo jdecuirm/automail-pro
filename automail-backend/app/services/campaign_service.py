@@ -103,6 +103,17 @@ async def get_campaign(
     if campaign is None:
         return None
 
+    # Lazy status recalculation: if "review" but all emails are terminal, advance
+    # to "completed". Self-heals campaigns where the worker missed the transition
+    # (crash, restart, race condition). Cheap: complete_campaign_if_done is a no-op
+    # when active emails still exist.
+    if campaign.status == CampaignStatus.review:
+        from app.services.campaign_advance import complete_campaign_if_done
+
+        await complete_campaign_if_done(campaign_id, session)
+        await session.commit()
+        await session.refresh(campaign)
+
     stats_rows = (
         await session.execute(
             select(Lead.status, func.count(Lead.id))

@@ -6,6 +6,7 @@ const ACTIVE_STATUSES: CampaignStatus[] = [
   "uploaded",
   "scraping",
   "generating",
+  "review", // campaign can still move to "completed" while emails are being sent
   "sending",
 ];
 

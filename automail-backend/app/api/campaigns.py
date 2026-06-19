@@ -11,6 +11,7 @@ from app.database import get_db
 from app.models.campaign import Campaign
 from app.models.email import Email, EmailStatus
 from app.models.lead import Lead
+from app.models.user import User
 from app.schemas.campaign import CampaignListItem, CampaignResponse
 from app.schemas.csv_upload import CSVUploadResponse
 from app.schemas.email import BulkSendResponse, EmailResponse
@@ -99,7 +100,6 @@ async def delete_campaign(
 ) -> None:
     """Delete a campaign and all its leads, emails, and research (cascade)."""
     user_id = uuid.UUID(settings.demo_user_id)
-    # Ownership check first — select is cheap and gives a clear 404.
     exists = (
         await session.execute(
             select(Campaign.id).where(Campaign.id == campaign_id, Campaign.user_id == user_id)
@@ -107,8 +107,6 @@ async def delete_campaign(
     ).scalar_one_or_none()
     if exists is None:
         raise HTTPException(status_code=404, detail="Campaign not found.")
-    # Raw DELETE lets the DB ON DELETE CASCADE handle child rows; avoids async
-    # lazy-load issues that session.delete(orm_obj) triggers on relationships.
     await session.execute(delete(Campaign).where(Campaign.id == campaign_id))
     await session.commit()
 
@@ -150,11 +148,8 @@ async def bulk_send_approved(
     settings: Settings = Depends(get_settings),
 ) -> BulkSendResponse:
     """Dispatch send tasks for all approved emails in a campaign, up to daily quota."""
-
     user_id = uuid.UUID(settings.demo_user_id)
 
-    # Raw ORM lookup — avoids CampaignResponse.model_validate so this endpoint
-    # doesn't pull in the full campaign serialization path.
     campaign = (
         await session.execute(
             select(Campaign).where(
@@ -165,6 +160,17 @@ async def bulk_send_approved(
     ).scalar_one_or_none()
     if campaign is None:
         raise HTTPException(status_code=404, detail="Campaign not found.")
+
+    # Gate: sender profile must be complete before any email can be dispatched.
+    user: User | None = await session.get(User, user_id)
+    if user is None or not (user.sender_name and user.sender_company):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Sender profile incomplete. "
+                "Set your name and company in Settings → Account before sending."
+            ),
+        )
 
     approved_emails = (
         (

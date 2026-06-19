@@ -42,6 +42,7 @@ describe("BulkSendDialog", () => {
         onClose={() => undefined}
         campaignId="c1"
         emails={emails}
+        profileComplete={true}
       />,
       { wrapper },
     );
@@ -65,6 +66,7 @@ describe("BulkSendDialog", () => {
         onClose={() => undefined}
         campaignId="c1"
         emails={manyEmails}
+        profileComplete={true}
       />,
       { wrapper },
     );
@@ -81,6 +83,7 @@ describe("BulkSendDialog", () => {
         onClose={() => undefined}
         campaignId="c1"
         emails={emails}
+        profileComplete={true}
       />,
       { wrapper },
     );

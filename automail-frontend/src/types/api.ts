@@ -136,3 +136,15 @@ export interface BulkSendResponse {
   blocked_by_quota: number;
   remaining_quota_today: number;
 }
+
+// User profile
+export interface UserProfile {
+  sender_name: string | null;
+  sender_company: string | null;
+  profile_complete: boolean;
+}
+
+export interface UserProfileUpdate {
+  sender_name?: string | null;
+  sender_company?: string | null;
+}

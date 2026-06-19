@@ -28,7 +28,8 @@ Rules:
 - ONE specific observation about the company (from the research provided)
 - ONE clear, low-friction call to action (e.g. "open to a quick chat?")
 - Subject line: under 60 characters, no clickbait
-- Sign off with "Best," and leave [YOUR_NAME] as a placeholder for the sender
+- Sign off with "Best," and use [YOUR_NAME] as a placeholder for the sender's name
+- If you need to mention the sender's company, use [YOUR_COMPANY] as a placeholder
 
 Respond ONLY with a JSON object (no markdown fences) with these exact keys:
 {
@@ -95,6 +96,20 @@ def parse_claude_response(raw: str) -> dict[str, str]:
     return {k: str(data[k]) for k in ("subject", "body_text", "body_html")}
 
 
+def _apply_sender_placeholders(
+    parsed: dict[str, str],
+    sender_name: str | None,
+    sender_company: str | None,
+) -> dict[str, str]:
+    """Replace [YOUR_NAME] and [YOUR_COMPANY] with real values when available."""
+    for field in ("body_text", "body_html"):
+        if sender_name:
+            parsed[field] = parsed[field].replace("[YOUR_NAME]", sender_name)
+        if sender_company:
+            parsed[field] = parsed[field].replace("[YOUR_COMPANY]", sender_company)
+    return parsed
+
+
 async def generate_email_draft(lead_id: uuid.UUID, session: AsyncSession) -> Email | None:
     """Load lead + research, call Claude, persist Email, update Lead status.
 
@@ -106,6 +121,8 @@ async def generate_email_draft(lead_id: uuid.UUID, session: AsyncSession) -> Ema
         The persisted Email model on success, or None if generation failed.
     """
     from app.config import get_settings
+    from app.models.campaign import Campaign
+    from app.models.user import User
 
     settings = get_settings()
 
@@ -130,6 +147,16 @@ async def generate_email_draft(lead_id: uuid.UUID, session: AsyncSession) -> Ema
         await session.commit()
         return None
 
+    # Load sender profile from the campaign owner — may be null if not yet configured.
+    campaign: Campaign | None = await session.get(Campaign, lead.campaign_id)
+    sender_name: str | None = None
+    sender_company: str | None = None
+    if campaign:
+        user: User | None = await session.get(User, campaign.user_id)
+        if user:
+            sender_name = user.sender_name
+            sender_company = user.sender_company
+
     user_prompt = build_user_prompt(
         lead_name=lead.name,
         company=lead.company or "their company",
@@ -153,10 +180,9 @@ async def generate_email_draft(lead_id: uuid.UUID, session: AsyncSession) -> Ema
         await session.commit()
         return None
 
-    # Replace the sender placeholder Claude was instructed to leave.
-    # Long-term: pull sender_name from the user's profile once auth is added.
-    for field in ("body_text", "body_html"):
-        parsed[field] = parsed[field].replace("[YOUR_NAME]", settings.sender_name)
+    # Replace sender placeholders with real values if the profile is already configured.
+    # Placeholders remain visible in the preview so the user knows to complete their profile.
+    parsed = _apply_sender_placeholders(parsed, sender_name, sender_company)
 
     email = Email(
         lead_id=lead.id,

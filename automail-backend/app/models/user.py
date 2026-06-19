@@ -18,6 +18,8 @@ class User(BaseModel):
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
     hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    sender_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    sender_company: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
     campaigns: Mapped[list[Campaign]] = relationship("Campaign", back_populates="user")
     gmail_credential: Mapped[GmailCredential | None] = relationship(

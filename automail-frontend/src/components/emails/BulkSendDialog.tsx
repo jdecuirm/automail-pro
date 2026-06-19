@@ -1,3 +1,4 @@
+import { AlertCircle } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +19,7 @@ interface BulkSendDialogProps {
   onClose: () => void;
   campaignId: string;
   emails: EmailResponse[];
+  profileComplete: boolean;
 }
 
 export default function BulkSendDialog({
@@ -25,6 +27,7 @@ export default function BulkSendDialog({
   onClose,
   campaignId,
   emails,
+  profileComplete,
 }: BulkSendDialogProps) {
   const bulkSend = useBulkSend(campaignId);
   const approvedCount = emails.filter((e) => e.status === "approved").length;
@@ -46,6 +49,16 @@ export default function BulkSendDialog({
           <AlertDialogTitle>Send approved emails</AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-2 text-sm">
+              {!profileComplete && (
+                <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-destructive">
+                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>
+                    Your sender profile is incomplete. Go to{" "}
+                    <strong>Settings → Account</strong> to set your name and
+                    company before sending.
+                  </span>
+                </div>
+              )}
               <p>
                 You are about to send{" "}
                 <span className="font-semibold">{approvedCount}</span> approved
@@ -68,7 +81,9 @@ export default function BulkSendDialog({
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleSend}
-            disabled={bulkSend.isPending || approvedCount === 0}
+            disabled={
+              bulkSend.isPending || approvedCount === 0 || !profileComplete
+            }
           >
             {bulkSend.isPending
               ? "Sending…"

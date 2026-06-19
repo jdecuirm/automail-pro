@@ -31,6 +31,7 @@ import CampaignFunnel from "@/components/metrics/CampaignFunnel";
 import OpenRateChart from "@/components/metrics/OpenRateChart";
 import { useCampaign } from "@/hooks/useCampaign";
 import { useCampaignEmails } from "@/hooks/useCampaignEmails";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { deleteCampaign } from "@/api/campaigns";
 import { fullDateTime } from "@/lib/format";
 
@@ -38,7 +39,13 @@ export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: campaign, isPending, isError } = useCampaign(id ?? "");
+  const {
+    data: campaign,
+    isPending,
+    isError,
+    refetch: refetchCampaign,
+  } = useCampaign(id ?? "");
+  const { data: profile } = useUserProfile();
 
   // Must be called unconditionally (Rules of Hooks) — before any early returns
   const [emailSearch, setEmailSearch] = useState("");
@@ -147,7 +154,12 @@ export default function CampaignDetail() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="overview">
+      <Tabs
+        defaultValue="overview"
+        onValueChange={(tab) => {
+          if (tab === "metrics") void refetchCampaign();
+        }}
+      >
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="leads">Leads</TabsTrigger>
@@ -281,6 +293,7 @@ export default function CampaignDetail() {
             onClose={() => setBulkSendOpen(false)}
             campaignId={campaign.id}
             emails={emails}
+            profileComplete={profile?.profile_complete ?? false}
           />
         </TabsContent>
 
