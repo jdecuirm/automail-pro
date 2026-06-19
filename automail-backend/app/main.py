@@ -120,7 +120,7 @@ def create_app() -> FastAPI:
             },
             {
                 "name": "health",
-                "description": "Service health check with live dependency probes (DB, Redis, Celery).",
+                "description": "Service health check with dependency probes (DB, Redis, Celery).",
             },
         ],
         lifespan=lifespan,
